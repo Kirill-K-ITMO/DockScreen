@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="160" viewBox="0 0 660 160" role="img" aria-labelledby="title desc">
+  <title id="title">DockScreen</title>
+  <desc id="desc">A molecular fragment entering an open screen and binding pocket.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M122 40V30a14 14 0 0 0-14-14H30a14 14 0 0 0-14 14v82a14 14 0 0 0 14 14h78a14 14 0 0 0 14-14v-10" stroke="#173E2A" stroke-width="8"/>
+    <path d="M52 144h42m-21-18v18" stroke="#173E2A" stroke-width="7"/>
+    <path d="M104 48H82L66 72l16 24h22" stroke="#173E2A" stroke-width="7"/>
+    <path d="M91 72h26l17-22m-17 22 17 22" stroke="#238636" stroke-width="6"/>
+    <g fill="#FFFFFF" stroke="#238636" stroke-width="5">
+      <circle cx="91" cy="72" r="8"/>
+      <circle cx="117" cy="72" r="7"/>
+      <circle cx="136" cy="47" r="8"/>
+      <circle cx="136" cy="97" r="8"/>
+    </g>
+  </g>
+  <text x="172" y="91" font-family="Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="61" font-weight="700" letter-spacing="-2"><tspan fill="#173E2A">Dock</tspan><tspan fill="#238636">Screen</tspan></text>
+  <text x="175" y="121" fill="#526B58" font-family="Segoe UI, DejaVu Sans, Arial, sans-serif" font-size="14" letter-spacing="2.2">MOLECULAR DOCKING</text>
+</svg>

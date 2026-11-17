@@ -1,0 +1,21 @@
+AutoDock Vina 1.2.7 Windows executable
+
+Unmodified upstream executable vina_1.2.7_win.exe, renamed to tools/vina.exe.
+Release: https://github.com/forlilab/AutoDock-Vina/releases/tag/v1.2.7
+Source: https://github.com/forlilab/AutoDock-Vina/tree/v1.2.7
+
+Copyright (c) 2006-2010, The Scripps Research Institute
+Author: Dr. Oleg Trott, The Olson Lab, The Scripps Research Institute
+Upstream header: src/lib/vina.h at tag v1.2.7.
+Further contributors and method references are recorded by upstream.
+License: Apache License 2.0; full text: AutoDock-Vina-LICENSE.txt.
+
+Vina's Windows build uses Boost. Boost Software License 1.0 is preserved
+in Boost-LICENSE_1_0.txt (https://www.boost.org/LICENSE_1_0.txt).
+The upstream build script defaults to Boost 1.83.0 but allows override;
+the exact linked Boost version of this downloaded binary is not asserted.
+
+This is a DockScreen distribution notice, not an upstream NOTICE file.
+The upstream root NOTICE URL returned 404 during review on 2026-11-06.
+DockScreen does not claim authorship or endorsement of AutoDock Vina or Boost.
+The MIT license of original DockScreen code does not relicense these works.

@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use DockScreen in your work, please cite this software."
+type: software
+title: "DockScreen: SMILES preparation and batch molecular docking"
+version: "0.2.0"
+authors:
+  - family-names: "Karkhanin"
+    given-names: "Kirill V."
+license: MIT
+abstract: >-
+  DockScreen prepares ligands from SMILES and performs CPU docking screens
+  against prepared receptors using an external AutoDock Vina executable,
+  with bounded CPU allocation, calculation caching and CSV/JSON/HTML exports.
+keywords:
+  - cheminformatics
+  - molecular docking
+  - virtual screening

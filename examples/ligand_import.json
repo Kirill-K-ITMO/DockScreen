@@ -1,0 +1,7 @@
+{
+  "smiles_column": "Structure",
+  "name_column": "CompoundCode",
+  "naming": "preserve",
+  "name_prefix": "ligand",
+  "delimiter": "semicolon"
+}
