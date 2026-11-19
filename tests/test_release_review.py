@@ -85,7 +85,7 @@ def test_public_layout_ignores_local_history_and_unreviewed_data(tmp_path, monke
     assert 'docs/STATUS.md' not in names and 'data/private_library.csv' not in names
     assert 'assets/dockscreen-logo.svg' in names
     assert 'data/receptor_sources.json' in names
-    assert release.source_bytes(tmp_path/'app_settings.json') == b'{\n  "vina_executable": "vina"\n}\n'
+    assert release.source_bytes(tmp_path/'settings/app_settings.json') == b'{\n  "vina_executable": "vina"\n}\n'
 
 
 def test_public_builder_rejects_modified_example_data(tmp_path, monkeypatch):

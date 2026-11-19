@@ -9,7 +9,9 @@ from io import BytesIO
 from pathlib import Path
 from src.reporting.csv_safety import write_csv
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
+import uuid
+from src.reporting.document_names import document_stem
 import logging
 
 try:
@@ -141,9 +143,11 @@ class ReportGenerator:
     
     def prepare_report_data(self, 
                            enriched_results: Dict,
-                           smiles_dict: Dict[str, str]) -> Tuple[List[Dict], List[str]]:
+                           smiles_dict: Dict[str, str], admet=None) -> Tuple[List[Dict], List[str]]:
         """Prepare report data with molecular descriptors."""
         report_data = []
+        from src.reporting.admet import validate_join
+        validate_join(enriched_results, admet)
         
         all_proteins = set()
         for ligand_data in enriched_results.values():
@@ -169,6 +173,14 @@ class ReportGenerator:
                 'sa_score': descriptors['sa_score'],
                 'proteins': {}
             }
+            if admet is not None:
+                prediction = admet['by_label'][ligand_name]
+                row['row_id'] = prediction['row_id']
+                import math
+                row['admet'] = {key: value if type(value) in (int, float) and math.isfinite(value) else None
+                                for key, value in prediction['values'].items()}
+                row['admet_status'] = prediction['status']
+                row['admet_error'] = prediction.get('error') or ''
             
             if smiles != 'N/A':
                 row['structure_img'] = self.smiles_to_image_base64(smiles)
@@ -203,7 +215,7 @@ class ReportGenerator:
                             smiles_dict: Optional[Dict[str, str]] = None,
                             output_file: Optional[Path] = None,
                             title: str = "Docking results",
-                            exhaustiveness: int = None) -> Path:
+                            exhaustiveness: int = None, *, admet=None) -> Path:
         """
         Generate an HTML results report.
         Includes theme switching and filters.
@@ -213,11 +225,14 @@ class ReportGenerator:
         if smiles_dict is None:
             smiles_dict = self.load_smiles_data()
         
-        report_data, proteins = self.prepare_report_data(enriched_results, smiles_dict)
+        report_data, proteins = self.prepare_report_data(enriched_results, smiles_dict, admet)
+        admet_keys = [k for k in admet['endpoints'] if k != 'docking_score'] if admet is not None else []
         
         if output_file is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = self.reports_dir / f"docking_report_{timestamp}.html"
+            timestamp = document_stem(kind='DOCKING-ADMET' if admet else 'DOCKING',
+                target=proteins[0] if len(proteins)==1 else 'multiple-targets',identity=uuid.uuid4().hex,
+                created_utc=datetime.now(timezone.utc).isoformat())
+            output_file = self.reports_dir / f"{timestamp}__report.html"
         
         # Complete HTML template
         html_template = """<!DOCTYPE html>
@@ -280,6 +295,7 @@ class ReportGenerator:
         .footer { text-align: center; padding: 20px; background: var(--bg-secondary); color: var(--text-secondary); border-top: 2px solid var(--border-color); }
         .no-data { color: var(--text-secondary); font-style: italic; }
         .info-badge { display: inline-block; padding: 4px 8px; background: var(--accent-light); color: var(--accent-color); border-radius: 4px; font-size: 0.85em; font-weight: bold; margin: 0 5px; }
+        /*ADMET_DISPLAY_CSS*/
     </style>
 </head>
 <body>
@@ -296,6 +312,7 @@ class ReportGenerator:
             <div class="stat-box"><div class="number">{{ total_proteins }}</div><div class="label">Receptors</div></div>
             <div class="stat-box"><div class="number">{{ total_dockings }}</div><div class="label">Docking runs</div></div>
         </div>
+        <!--ADMET_VIEW-->
         <div class="controls">
             <div class="control-group">
                 <label for="sortProtein">Receptor:</label>
@@ -320,12 +337,14 @@ class ReportGenerator:
                 <button class="filter-btn" onclick="clearFilters()">Reset</button>
             </div>
         </div>
-        <div class="table-container">
+        <!--ADMET_METADATA-->
+        <div class="table-container" id="report-table-panel" {% if admet is not none %}role="tabpanel" aria-labelledby="tab-docking"{% endif %}>
             <table id="resultsTable">
                 <thead>
                     <tr>
-                        <th>№</th><th>Name</th><th>Formula</th><th>MW</th><th>LogP</th><th>TPSA</th><th>HBD</th><th>HBA</th><th>SA Score</th><th>SMILES</th><th>Structure</th>
+                        <th>№</th><th>Name</th><th data-docking-only>Formula</th><th data-docking-only>MW</th><th data-docking-only>LogP</th><th data-docking-only>TPSA</th><th data-docking-only>HBD</th><th data-docking-only>HBA</th><th data-docking-only>SA Score</th><th data-docking-only>SMILES</th><th>Structure</th>
                         {% for protein in proteins %}<th>{{ protein }}<br><span style="font-size:0.7em; font-weight:normal;">Docking score (kcal/mol) / estimated Ki / estimated pKi</span></th>{% endfor %}
+                        {% if admet is not none %}<th data-admet-status hidden>ADMET status</th>{% for key in admet_keys %}<th data-admet-key="{{ key }}" hidden title="{{ admet.endpoints[key] | tojson | forceescape }}">ADMET · {{ key }}<br><small>{{ admet.endpoints[key].units }} · {{ admet.endpoints[key].type }}</small></th>{% endfor %}{% endif %}
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -333,18 +352,19 @@ class ReportGenerator:
                     <tr data-ligand="{{ row.name }}" data-mw="{{ row.mw if row.mw is not none else 9999 }}" data-logp="{{ row.logp if row.logp is not none else 9999 }}" data-hbd="{{ row.hbd if row.hbd is not none else 99 }}" data-hba="{{ row.hba if row.hba is not none else 99 }}" {% for protein in proteins %}data-p{{ loop.index0 }}-ki="{{ row.proteins[protein].ki if row.proteins[protein].ki is not none else 999999 }}" data-p{{ loop.index0 }}-pki="{{ row.proteins[protein].pki if row.proteins[protein].pki is not none else 0 }}" {% endfor %}data-sa="{{ row.sa_score if row.sa_score is not none else 999 }}">
                         <td class="row-number">{{ loop.index }}</td>
                         <td><strong>{{ row.name }}</strong></td>
-                        <td class="descriptor-value">{{ row.formula }}</td>
-                        <td class="descriptor-value">{{ "%.2f"|format(row.mw) if row.mw is not none else "N/A" }}</td>
-                        <td class="descriptor-value">{{ "%.2f"|format(row.logp) if row.logp is not none else "N/A" }}</td>
-                        <td class="descriptor-value">{{ "%.2f"|format(row.tpsa) if row.tpsa is not none else "N/A" }}</td>
-                        <td class="descriptor-value">{{ row.hbd if row.hbd is not none else "N/A" }}</td>
-                        <td class="descriptor-value">{{ row.hba if row.hba is not none else "N/A" }}</td>
-                        <td class="descriptor-value">{% if row.sa_score is not none %}{% if row.sa_score < 3.0 %}<span class="sa-good">{{ "%.2f"|format(row.sa_score) }}</span>{% elif row.sa_score < 6.0 %}<span class="sa-moderate">{{ "%.2f"|format(row.sa_score) }}</span>{% else %}<span class="sa-hard">{{ "%.2f"|format(row.sa_score) }}</span>{% endif %}{% else %}<span class="no-data">N/A</span>{% endif %}</td>
-                        <td><div class="smiles-text">{{ row.smiles }}</div></td>
+                        <td class="descriptor-value" data-docking-only>{{ row.formula }}</td>
+                        <td class="descriptor-value" data-docking-only>{{ "%.2f"|format(row.mw) if row.mw is not none else "N/A" }}</td>
+                        <td class="descriptor-value" data-docking-only>{{ "%.2f"|format(row.logp) if row.logp is not none else "N/A" }}</td>
+                        <td class="descriptor-value" data-docking-only>{{ "%.2f"|format(row.tpsa) if row.tpsa is not none else "N/A" }}</td>
+                        <td class="descriptor-value" data-docking-only>{{ row.hbd if row.hbd is not none else "N/A" }}</td>
+                        <td class="descriptor-value" data-docking-only>{{ row.hba if row.hba is not none else "N/A" }}</td>
+                        <td class="descriptor-value" data-docking-only>{% if row.sa_score is not none %}{% if row.sa_score < 3.0 %}<span class="sa-good">{{ "%.2f"|format(row.sa_score) }}</span>{% elif row.sa_score < 6.0 %}<span class="sa-moderate">{{ "%.2f"|format(row.sa_score) }}</span>{% else %}<span class="sa-hard">{{ "%.2f"|format(row.sa_score) }}</span>{% endif %}{% else %}<span class="no-data">N/A</span>{% endif %}</td>
+                        <td data-docking-only><div class="smiles-text">{{ row.smiles }}</div></td>
                         <td>{% if row.structure_img %}<img src="{{ row.structure_img }}" alt="{{ row.name }}" class="mol-img">{% else %}<span class="no-data">No image</span>{% endif %}</td>
                         {% for protein in proteins %}
                         <td class="affinity-cell">{% set pdata = row.proteins[protein] %}{% if pdata.delta_g is not none %}{% if pdata.delta_g < -8.0 %}<span class="affinity-good">{{ "%.2f"|format(pdata.delta_g) }}</span>{% elif pdata.delta_g < -6.0 %}<span class="affinity-moderate">{{ "%.2f"|format(pdata.delta_g) }}</span>{% else %}<span class="affinity-weak">{{ "%.2f"|format(pdata.delta_g) }}</span>{% endif %}<span class="ki-value">{{ pdata.ki_formatted }}</span>{% if pdata.pki is not none %}<span class="ki-value">pKi: {{ "%.2f"|format(pdata.pki) }}</span>{% endif %}{% else %}<span class="no-data">—</span>{% endif %}</td>
                         {% endfor %}
+                        {% if admet is not none %}<td data-admet-status hidden title="{{ row.admet_error }}">{{ row.admet_status }}</td>{% for key in admet_keys %}<td class="descriptor-value" data-admet-key="{{ key }}" hidden>{{ '%.6g' | format(row.admet[key]) if row.admet.get(key) is not none else '—' }}</td>{% endfor %}{% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -357,21 +377,34 @@ class ReportGenerator:
         </div>
     </div>
     <script>
-        function toggleTheme() { const html = document.documentElement; const currentTheme = html.getAttribute('data-theme'); const newTheme = currentTheme === 'dark' ? 'light' : 'dark'; html.setAttribute('data-theme', newTheme); localStorage.setItem('theme', newTheme); }
-        (function() { const savedTheme = localStorage.getItem('theme') || 'light'; document.documentElement.setAttribute('data-theme', savedTheme); })();
+        function toggleTheme() { const html = document.documentElement; const currentTheme = html.getAttribute('data-theme'); const newTheme = currentTheme === 'dark' ? 'light' : 'dark'; html.setAttribute('data-theme', newTheme); try { localStorage.setItem('theme', newTheme); } catch (_) {} }
+        (function() { let savedTheme = 'light'; try { savedTheme = localStorage.getItem('theme') || 'light'; } catch (_) {} document.documentElement.setAttribute('data-theme', savedTheme); })();
         function sortTable() { const protein = document.getElementById('sortProtein').value; const criteria = document.getElementById('sortCriteria').value; if (!protein && criteria !== 'sa') { return; } const tbody = document.getElementById('tableBody'); const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.classList.contains('filtered-out')); rows.sort((a, b) => { let valA, valB; if (criteria === 'sa') { valA = parseFloat(a.getAttribute('data-sa')); valB = parseFloat(b.getAttribute('data-sa')); return valA - valB; } else if (criteria === 'ki') { valA = parseFloat(a.getAttribute(`data-${protein}-ki`)); valB = parseFloat(b.getAttribute(`data-${protein}-ki`)); return valA - valB; } else if (criteria === 'pki') { valA = parseFloat(a.getAttribute(`data-${protein}-pki`)); valB = parseFloat(b.getAttribute(`data-${protein}-pki`)); return valB - valA; } return 0; }); rows.forEach(row => tbody.appendChild(row)); updateRowNumbers(); }
         let activeFilters = new Set();
         function toggleFilter(filterType) { const btn = document.getElementById(`filter${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`); if (activeFilters.has(filterType)) { activeFilters.delete(filterType); btn.classList.remove('active'); } else { activeFilters.add(filterType); btn.classList.add('active'); } applyFilters(); }
         function clearFilters() { activeFilters.clear(); document.querySelectorAll('.filter-btn.active').forEach(btn => btn.classList.remove('active')); applyFilters(); }
         function applyFilters() { const rows = document.querySelectorAll('#tableBody tr'); rows.forEach(row => { let show = true; if (activeFilters.has('lipinski')) { const mw = parseFloat(row.getAttribute('data-mw')); const logp = parseFloat(row.getAttribute('data-logp')); const hbd = parseInt(row.getAttribute('data-hbd')); const hba = parseInt(row.getAttribute('data-hba')); if (mw > 500 || logp > 5 || hbd > 5 || hba > 10) { show = false; } } if (activeFilters.has('ki') && show) { const kiAttrs = Array.from(row.attributes).filter(attr => attr.name.endsWith('-ki')); const hasGoodKi = kiAttrs.some(attr => parseFloat(attr.value) < 1e-6); if (!hasGoodKi) { show = false; } } if (activeFilters.has('sa') && show) { const sa = parseFloat(row.getAttribute('data-sa')); if (sa >= 4) { show = false; } } row.classList.toggle('filtered-out', !show); }); updateRowNumbers(); }
         function updateRowNumbers() { const visibleRows = Array.from(document.querySelectorAll('#tableBody tr')).filter(r => !r.classList.contains('filtered-out')); visibleRows.forEach((row, index) => { row.querySelector('.row-number').textContent = index + 1; }); }
+        /*ADMET_DISPLAY_JS*/
     </script>
 </body>
 </html>"""
         
         # Rendering
+        from src.reporting.admet_display import CSS, HTML, JS, DEFAULT_VISIBLE, LABELS
+        html_template = html_template.replace('/*ADMET_DISPLAY_CSS*/', CSS).replace('<!--ADMET_VIEW-->', HTML).replace('/*ADMET_DISPLAY_JS*/', JS)
+        if admet is not None:
+            from src.reporting.admet import NOTE
+            html_template = html_template.replace('<!--ADMET_METADATA-->',
+                '<p>{{ admet_note }}</p><details><summary>ADMET model and endpoint metadata</summary><pre>{{ admet_details }}</pre></details>', 1)
+        else:
+            NOTE = ''
+            html_template = html_template.replace('<!--ADMET_METADATA-->', '')
+        import json
         template = Template(html_template, autoescape=True)
-        html_content = template.render(app_name=APP_NAME, app_version=__version__, affinity_note=AFFINITY_NOTE, title=title, subtitle=f"Generated {datetime.now().strftime('%Y-%m-%d at %H:%M')}", total_ligands=len(report_data), total_proteins=len(proteins), total_dockings=sum(len(values) for values in enriched_results.values()), proteins=proteins, data=report_data, timestamp=datetime.now().strftime('%d.%m.%Y %H:%M:%S'), exhaustiveness=exhaustiveness)
+        template.globals.update(admet_picker_keys=sorted(admet_keys, key=lambda k: (k not in DEFAULT_VISIBLE, k)),
+                                admet_default_visible=DEFAULT_VISIBLE, admet_labels=LABELS)
+        html_content = template.render(app_name=APP_NAME, app_version=__version__, affinity_note=AFFINITY_NOTE, title=title, subtitle=f"Generated {datetime.now().strftime('%Y-%m-%d at %H:%M')}", total_ligands=len(report_data), total_proteins=len(proteins), total_dockings=sum(len(values) for values in enriched_results.values()), proteins=proteins, data=report_data, timestamp=datetime.now().strftime('%d.%m.%Y %H:%M:%S'), exhaustiveness=exhaustiveness, admet=admet, admet_keys=admet_keys, admet_note=NOTE, admet_details=json.dumps({'metadata':admet['metadata'],'endpoints':admet['endpoints']} if admet is not None else {},ensure_ascii=False,indent=2))
         
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(brand_html(html_content))
@@ -382,18 +415,40 @@ class ReportGenerator:
     def generate_csv_report(self,
                            enriched_results: Dict,
                            smiles_dict: Optional[Dict[str, str]] = None,
-                           output_file: Optional[Path] = None) -> Path:
+                           output_file: Optional[Path] = None, *, admet=None) -> Path:
         """Generate a CSV report with results and descriptors."""
         self.logger.info("Generating CSV report...")
         
         if smiles_dict is None:
             smiles_dict = self.load_smiles_data()
         
-        report_data, proteins = self.prepare_report_data(enriched_results, smiles_dict)
+        report_data, proteins = self.prepare_report_data(enriched_results, smiles_dict, admet)
         
         if output_file is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = self.reports_dir / f"docking_report_{timestamp}.csv"
+            timestamp = document_stem(kind='DOCKING-ADMET' if admet else 'DOCKING',
+                target=proteins[0] if len(proteins)==1 else 'multiple-targets',identity=uuid.uuid4().hex,
+                created_utc=datetime.now(timezone.utc).isoformat())
+            output_file = self.reports_dir / f"{timestamp}__report.csv"
+        if admet is not None:
+            keys = [k for k in admet['endpoints'] if k != 'docking_score']
+            headers = ['row_id','name','smiles','formula','mw','logp','tpsa','hbd','hba','sa_score']
+            headers += [f'{p}_delta_g' for p in proteins]
+            headers += [f'ADMET__{k}' for k in keys] + ['admet_status','admet_error']
+            for p in proteins: headers += [f'{p}_ki',f'{p}_ki_formatted',f'{p}_pki']
+            records = []
+            for row in report_data:
+                record = {k: row[k] for k in ('name','smiles','formula','mw','logp','tpsa','hbd','hba','sa_score')}
+                record['row_id'] = row['row_id']
+                record.update({f'ADMET__{k}': row['admet'].get(k) for k in keys})
+                record.update(admet_status=row['admet_status'],admet_error=row['admet_error'])
+                for p in proteins:
+                    for metric in ('delta_g','ki','ki_formatted','pki'): record[f'{p}_{metric}'] = row['proteins'][p][metric]
+                records.append(record)
+            from src.reporting.admet import NOTE
+            write_csv(output_file,headers,records,text_columns=['name','smiles','formula','admet_status','admet_error',*[f'{p}_ki_formatted' for p in proteins]],
+                notes={'kind':'docking_admet_report','affinity_note':AFFINITY_NOTE,'admet_note':NOTE,
+                       'admet_metadata':admet['metadata'],'endpoints':admet['endpoints'],'source_sha256':admet['source_sha256']},bom=True)
+            return output_file
         
         # Build column headers
         headers = ['name', 'smiles', 'formula', 'mw', 'logp', 'tpsa', 'hbd', 'hba', 'sa_score']
@@ -432,26 +487,32 @@ class ReportGenerator:
                         enriched_results: Dict,
                         smiles_dict: Optional[Dict[str, str]] = None,
                         title: str = "Docking results",
-                        exhaustiveness: int = None) -> Tuple[Path, Path]:
+                        exhaustiveness: int = None, *, admet=None, output_dir=None) -> Tuple[Path, Path]:
         """Generate both reports (HTML and CSV)."""
         self.logger.info("REPORT GENERATION")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        html_file = self.reports_dir / f"docking_report_{timestamp}.html"
-        csv_file = self.reports_dir / f"docking_report_{timestamp}.csv"
+        directory = Path(output_dir) if output_dir is not None else self.reports_dir
+        directory.mkdir(parents=True,exist_ok=True)
+        targets = sorted({t for record in enriched_results.values() for t in record})
+        timestamp = document_stem(kind='DOCKING-ADMET' if admet else 'DOCKING',
+            target=targets[0] if len(targets)==1 else 'multiple-targets', identity=uuid.uuid4().hex,
+            created_utc=datetime.now(timezone.utc).isoformat())
+        html_file = directory / f"{timestamp}__report.html"
+        csv_file = directory / f"{timestamp}__table.csv"
         
         html_path = self.generate_html_report(
-            enriched_results, smiles_dict, html_file, title, exhaustiveness
+            enriched_results, smiles_dict, html_file, title, exhaustiveness, admet=admet
         )
         
         csv_path = self.generate_csv_report(
-            enriched_results, smiles_dict, csv_file
+            enriched_results, smiles_dict, csv_file, admet=admet
         )
         from src.reporting.hits import export_hits
         hits_input = {label: {target: {**data, 'smiles': data.get('smiles') or (smiles_dict or {}).get(label, '')}
                              for target, data in values.items()} for label, values in enriched_results.items()}
-        export_hits(hits_input, self.reports_dir / f'hits_{timestamp}')
+        export_hits(hits_input, directory / f'hits_{timestamp}')
         
         self.logger.info("✓ Reports generated successfully")
         self.logger.info(f"  HTML: {html_path}")
@@ -471,7 +532,8 @@ class ReportGenerator:
             Path to the generated db-report.html
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = self.reports_dir / f"db_report_{timestamp}.html"
+        timestamp = document_stem(kind='HISTORY',target='database',identity=uuid.uuid4().hex,created_utc=datetime.now(timezone.utc).isoformat())
+        output_file = self.reports_dir / f"{timestamp}__report.html"
         
         # Convert database data to the report format
         enriched_results = {}

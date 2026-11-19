@@ -10,7 +10,8 @@ NAME_ALIASES = {'name', 'название', 'compound_id', 'compoundid', 'molecu
 
 def csv_options(root, path=None, data=None):
     """Project-wide import settings shared by CLI, menus and preparation."""
-    settings_path = Path(root) / 'data/ligand_import.json'
+    settings_path = Path(root) / 'settings/ligand_import.json'
+    if not settings_path.exists(): settings_path = Path(root) / 'data/ligand_import.json'
     options = json.loads(settings_path.read_text(encoding='utf-8-sig')) if settings_path.exists() else {}
     allowed = {'smiles_column', 'name_column', 'naming', 'name_prefix', 'delimiter'}
     if not isinstance(options, dict) or set(options) - allowed:

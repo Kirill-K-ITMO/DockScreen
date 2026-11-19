@@ -1,5 +1,6 @@
 """Portable receptor/configuration identifiers without implicit profile selection."""
 from pathlib import Path
+from src.core.settings_paths import receptor_settings_dir
 import re
 
 EXTENSIONS = ('.txt', '.conf', '.config')
@@ -25,7 +26,7 @@ def split_target(target_id):
 def resolve_target(root, target_id):
     root = Path(root).resolve()
     receptor, profile = split_target(target_id)
-    stem = root / 'data/configs' / receptor
+    stem = receptor_settings_dir(root) / receptor
     if profile is not None:
         stem = stem / profile
     matches = [stem.with_name(stem.name + ext) for ext in EXTENSIONS
@@ -46,7 +47,7 @@ def get_targets(root):
     ids = set()
     for receptor_path in sorted((root / 'data/proteins').glob('*.pdbqt')):
         receptor = component(receptor_path.stem)
-        configs = root / 'data/configs'
+        configs = receptor_settings_dir(root)
         if any((configs / (receptor + ext)).is_file() for ext in EXTENSIONS):
             ids.add(receptor)
         for profile in (configs / receptor).glob('*'):

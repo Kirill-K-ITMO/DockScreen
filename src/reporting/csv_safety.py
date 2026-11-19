@@ -72,7 +72,7 @@ def load_export_metadata(path, data=None):
     return validate_export_metadata(path.read_bytes() if data is None else data, document['csv_safety'])
 
 
-def write_csv(path, headers, rows, *, text_columns=None, notes=None):
+def write_csv(path, headers, rows, *, text_columns=None, notes=None, bom=False):
     """Write safe CSV and a sidecar; original records stay in JSON/provenance."""
     from src.core.calculation_cache import atomic_json, atomic_write
     path = Path(path)
@@ -94,7 +94,7 @@ def write_csv(path, headers, rows, *, text_columns=None, notes=None):
                for h,v in zip(headers,values)):
             raise ValueError('Formula-like text is not a numeric CSV value')
         writer.writerow([escape_cell(v) if h in columns else v for h,v in zip(headers,values)])
-    data = stream.getvalue().encode('utf-8')
+    data = stream.getvalue().encode('utf-8-sig' if bom else 'utf-8')
     marker = dict(version=1, policy=POLICY, sha256=hashlib.sha256(data).hexdigest(),
                   headers=headers, text_columns=columns, headers_escaped=True, delimiter=',',
                   name_column='name' if 'name' in headers else None,

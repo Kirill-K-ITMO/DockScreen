@@ -21,7 +21,7 @@ def test_launcher_and_verification_help():
 def test_check_without_dependencies_explains_problem(tmp_path):
     result=subprocess.run([sys.executable,'-S',str(ROOT/'main.py'),'--check','--project',str(tmp_path)],capture_output=True,text=True)
     assert result.returncode==1
-    assert 'requirements.txt' in result.stdout
+    assert 'scripts/install.py' in result.stdout
     assert 'Traceback' not in result.stderr
 
 
@@ -57,4 +57,4 @@ def test_receptor_provenance_hashes():
     sources=json.loads((ROOT/'data/receptor_sources.json').read_text())
     for record in sources:
         for item in record['files']:
-            assert hashlib.sha256((ROOT/'data'/item['path']).read_bytes()).hexdigest()==item['sha256']
+            assert hashlib.sha256((ROOT/item['path']).read_bytes()).hexdigest()==item['sha256']

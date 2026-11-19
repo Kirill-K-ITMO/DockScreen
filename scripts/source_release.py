@@ -10,19 +10,18 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src.version import __version__
 FILES = ['.gitattributes', '.gitignore', 'AUTHORS.md', 'CITATION.cff',
-         'LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md',
-         'app_settings.json', 'cpu_settings.json', 'main.py', 'pytest.ini',
-         'requirements.txt', 'requirements-test.txt', 'verify_screening.py',
-         'tools/README.md', '.github/workflows/tests.yml',
-         'examples/ligand_import.json', 'examples/slurm_screening.sh',
+         'LICENSE', 'README.md', 'README_RU.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md',
+         'main.py', 'pyproject.toml', 'INSTALL.cmd', 'START.cmd', 'CHECK.cmd', 'verify_screening.py',
+         '.github/workflows/tests.yml',
+         'examples/slurm_screening.sh',
          'examples/windows/INSTALL.cmd', 'examples/windows/START.cmd', 'examples/windows/CHECK.cmd']
-DOCUMENTS = ['affinity_estimates.md',
+DOCUMENTS = ['affinity_estimates.md', 'admet.md', 'pareto_csv.md', 'smaa.md', 'csv_analysis.md',
              'references.md', 'test_data.md', 'licensing.md', 'dependency_inventory.json',
              'example_checksums.json']
-ASSETS = ['dockscreen-logo.svg', 'dockscreen-logo.png', 'dockscreen-icon.svg', 'dockscreen-console.txt']
-DATA = ['README.md', 'ligands.csv', 'ligand_sources.csv', 'receptor_sources.json',
+ASSETS = ['admet-panel-preview.gif', 'dockscreen-logo.svg', 'dockscreen-logo.png', 'dockscreen-icon.svg', 'dockscreen-console.txt']
+DATA = ['ligands.csv', 'ligand_sources.csv', 'receptor_sources.json',
         'proteins/JAK1_3EYG.pdbqt', 'proteins/JAK2_6BBV.pdbqt',
-        'configs/JAK1_3EYG.txt', 'configs/JAK2_6BBV.txt']
+        ]
 LICENSE_NAMES = {'LICENSE', 'LICENSE.txt', 'LICENSE.md', 'LICENSE.markdown-it',
                  'LICENSE.APACHE', 'LICENSE.BSD', 'README.md', 'RDKit-core-license.txt',
                  'SA_Score-NOTICE.txt', 'AutoDock-Vina-LICENSE.txt', 'Boost-LICENSE_1_0.txt',
@@ -31,9 +30,9 @@ LICENSE_NAMES = {'LICENSE', 'LICENSE.txt', 'LICENSE.md', 'LICENSE.markdown-it',
 
 def source_bytes(path):
     name = path.relative_to(ROOT).as_posix()
-    if name == 'app_settings.json':
+    if name == 'settings/app_settings.json':
         return b'{\n  "vina_executable": "vina"\n}\n'
-    if name == 'cpu_settings.json':
+    if name == 'settings/cpu_settings.json':
         return b'{\n  "cpu_budget": 4,\n  "cpu_per_job": 1\n}\n'
     content = path.read_bytes()
     if path.relative_to(ROOT).parts[0] not in ('data', 'licenses') and path.suffix in ('.py', '.md', '.sh'):
@@ -46,6 +45,10 @@ def source_paths():
     paths += [ROOT / 'docs' / name for name in DOCUMENTS]
     paths += [ROOT / 'assets' / name for name in ASSETS]
     paths += [ROOT / 'data' / name for name in DATA]
+    required_settings = ['app_settings.json', 'cpu_settings.json', 'PARETO_CRITERIA.csv',
+                         'examples/ligand_import.json',
+                         'receptors/JAK1_3EYG.txt', 'receptors/JAK2_6BBV.txt']
+    paths.extend(ROOT / 'settings' / name for name in required_settings)
     for name in ('src', 'tests', 'scripts'):
         paths.extend(p for p in (ROOT / name).rglob('*.py') if p.is_file()
                      and not any(part.startswith('.') or part in ('__pycache__', 'tmp', 'temp', 'cache')
@@ -82,7 +85,7 @@ def main():
     args = parser.parse_args()
     if args.output is not None:
         destination = args.output.resolve()
-        protected = ('data','src','tests','scripts','docs','assets','licenses','examples','tools','.github','.git','.venv')
+        protected = ('data','src','tests','scripts','docs','assets','licenses','examples','tools','settings','.github','.git','.venv')
         if destination.suffix.lower() != '.zip' or any(destination.is_relative_to(ROOT/p) for p in protected):
             parser.error('Source ZIP must have a .zip suffix and be outside project source/input directories')
     files = {p.relative_to(ROOT).as_posix(): source_bytes(p) for p in source_paths()}

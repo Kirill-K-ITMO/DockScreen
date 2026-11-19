@@ -1,13 +1,15 @@
+> Инструкция пользователя объединена в [README_RU.md](../README_RU.md). Этот документ содержит дополнительные технические сведения.
+
 # JAK example: data provenance and limitations
 
-The [bundled example](../data/README.md) exercises preparation, docking and caching. It is not a validated activity, selectivity or redocking benchmark.
+The [bundled example](../README_RU.md) exercises preparation, docking and caching. It is not a validated activity, selectivity or redocking benchmark.
 
 ## Included files
 
 - [ligands.csv](../data/ligands.csv): 40 unique input molecules with `name,smiles` columns.
 - [ligand_sources.csv](../data/ligand_sources.csv): PubChem CIDs, record URLs, identity verification dates and unspecified tetrahedral-center counts.
 - [receptor_sources.json](../data/receptor_sources.json): receptor sources, preparation metadata and hashes of the included PDBQT/box files.
-- Prepared receptors and box configurations are in `data/proteins/` and `data/configs/`.
+- Prepared receptors and box configurations are in `data/proteins/` and `settings/receptors/`.
 
 ## Receptors
 

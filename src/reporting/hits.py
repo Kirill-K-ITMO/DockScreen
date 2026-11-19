@@ -1,5 +1,8 @@
 """Per-target computational shortlists; no measured-affinity claims."""
 import hashlib
+from datetime import datetime, timezone
+import uuid
+from src.reporting.document_names import document_stem
 import math
 from pathlib import Path
 import re
@@ -50,7 +53,7 @@ def export_hits(results, output_dir: Path, *, targets=None):
             if ki <= 1e-6 or math.isclose(ki, 1e-6, rel_tol=1e-14, abs_tol=0):
                 rows.append([data.get('input_name', label), data.get('smiles', ''), score, ki * 1e6])
         slug = re.sub(r'[^A-Za-z0-9_-]+', '_', target).strip('_')[:48] or 'target'
-        stem = 'hits_' + slug + '_' + hashlib.sha256(target.encode('utf-8')).hexdigest()[:16]
+        stem = document_stem(kind='HITS',target=target,identity=uuid.uuid4().hex,created_utc=datetime.now(timezone.utc).isoformat())+'__table'
         table = Path(output_dir) / (stem + '.csv')
         notes = notes_path(table)
         note = dict(kind='computational_shortlist', target_id=target,

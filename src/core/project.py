@@ -1,6 +1,7 @@
 """Compact result archives and project input/status utilities."""
 
 import zipfile
+from src.core.settings_paths import receptor_settings_dir
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -50,8 +51,11 @@ class ProjectUtils:
         import tempfile
 
         root = Path(self.project_root).resolve()
+        from src.reporting.document_names import document_stem
+        from datetime import timezone
+        import uuid
         output_file = Path(output_file) if output_file is not None else root / (
-            f"dockscreen_results_{datetime.now():%Y%m%d_%H%M%S}.zip")
+            document_stem(kind='RESULTS',target='all-targets',identity=uuid.uuid4().hex,created_utc=datetime.now(timezone.utc).isoformat())+'.zip')
         if not output_file.is_absolute():
             output_file = root / output_file
         # abspath normalizes '..' without following a destination symlink.
@@ -71,7 +75,7 @@ class ProjectUtils:
                     raise ValueError(f'Archive destination must not contain symlinks or junctions: {path}')
 
         no_destination_links()
-        protected = ('data', 'src', 'docs', 'tests', 'scripts', 'assets', 'licenses',
+        protected = ('data', 'settings', 'src', 'docs', 'tests', 'scripts', 'assets', 'licenses',
                      '.git', '.venv', '.calculation_cache', 'output/runs', 'output/inputs',
                      'output/prepared', 'output/docking_results', 'output/cache')
         if any(output_file.is_relative_to(root / directory) for directory in protected):
@@ -144,7 +148,7 @@ class ProjectUtils:
             results = read_json(chosen / 'results.json')
             if not isinstance(results, dict) or any(not isinstance(v, dict) for v in results.values()):
                 raise ValueError('Invalid results.json structure')
-            for filename in ('results.json', 'preparation.json', 'summary.json', 'outcomes.json', 'task_outcomes.json', 'statistics.json'):
+            for filename in ('results.json', 'preparation.json', 'summary.json', 'outcomes.json', 'task_outcomes.json', 'statistics.json', 'admet.json'):
                 path = chosen / filename
                 if path.is_file():
                     value = read_json(path)
@@ -157,15 +161,26 @@ class ProjectUtils:
                 add(chosen / 'input.csv', 'run/input.csv')
                 add(chosen / 'input.csv.notes.json', 'run/input.csv.notes.json')
             if include_reports:
-                for name in ('scores.csv', 'report.html', 'scores.csv.notes.txt', 'scores.csv.notes.json'):
+                for name in ('scores.csv', 'report.html', 'scores.csv.notes.txt', 'scores.csv.notes.json',
+                             'admet.csv', 'admet.csv.notes.json', 'combined_report.html',
+                             'pareto_criteria.csv', 'pareto_parameters.csv'):
                     path = chosen / name
                     if path.is_file(): add(path, 'run/' + path.name)
-                for folder in ('hits', 'reports'):
+                for folder in ('hits', 'reports', 'pareto', 'settings'):
                     for path in sorted((chosen / folder).rglob('*')):
                         if (path.is_file() and path.suffix.lower() in ('.csv', '.html', '.json', '.txt')
                                 and not any(part.startswith('.') or part.lower() in ('tmp','temp','cache','__pycache__')
                                             for part in path.relative_to(chosen / folder).parts)):
                             add(path, 'run/' + folder + '/' + path.relative_to(chosen / folder).as_posix())
+                # Only published complete SMAA analyses; cancellation/staging are never exported.
+                for analysis in sorted((chosen / 'smaa').glob('analysis-*')):
+                    if not analysis.is_dir(): continue
+                    marker = analysis / 'status.json'
+                    if not marker.is_file() or read_json(marker).get('status') != 'complete': continue
+                    for path in sorted(analysis.rglob('*')):
+                        if (path.is_file() and path.suffix.lower() in ('.csv', '.json', '.txt', '.html')
+                                and not any(p.startswith('.') for p in path.relative_to(analysis).parts)):
+                            add(path, 'run/smaa/' + analysis.name + '/' + path.relative_to(analysis).as_posix())
             if include_logs:
                 for path in sorted(chosen.rglob('*.log')):
                     add(path, 'run/logs/' + path.relative_to(chosen).as_posix())
@@ -317,7 +332,7 @@ class ProjectUtils:
         checks = {
             'data_dir': self.data_dir.exists(),
             'proteins_dir': (self.data_dir / "proteins").exists(),
-            'configs_dir': (self.data_dir / "configs").exists(),
+            'configs_dir': receptor_settings_dir(self.project_root).exists(),
             'ligands_csv': self.ligands_csv.exists(),
             'output_dir': (self.project_root / "output").exists(),
             'src_dir': (self.project_root / "src").exists()
@@ -331,7 +346,7 @@ class ProjectUtils:
             checks['proteins_count'] = 0
         
         if checks['configs_dir']:
-            configs = list((self.data_dir / "configs").glob("*.txt"))
+            configs = list(receptor_settings_dir(self.project_root).glob("*.txt"))
             checks['configs_count'] = len(configs)
         else:
             checks['configs_count'] = 0
@@ -347,7 +362,7 @@ class ProjectUtils:
         print("\nStructure:")
         print(f"  {'✓' if checks['data_dir'] else '✗'} Directory data/")
         print(f"  {'✓' if checks['proteins_dir'] else '✗'} Directory data/proteins/ (receptors: {checks['proteins_count']})")
-        print(f"  {'✓' if checks['configs_dir'] else '✗'} Directory data/configs/ (configurations: {checks['configs_count']})")
+        print(f"  {'✓' if checks['configs_dir'] else '✗'} Directory settings/receptors/ (configurations: {checks['configs_count']})")
         print(f"  {'✓' if checks['ligands_csv'] else '✗'} File data/ligands.csv")
         print(f"  {'✓' if checks['output_dir'] else '✗'} Directory output/")
         print(f"  {'✓' if checks['src_dir'] else '✗'} Directory src/")

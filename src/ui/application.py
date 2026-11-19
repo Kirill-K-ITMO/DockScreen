@@ -80,7 +80,9 @@ class DockScreenApp:
         console.print(f"CPU budget: {pool.total}; maximum threads per Vina job: {pool.per_job}")
         groups=[('Screening',[(1,'Docking'),(2,'SMILES to PDBQT'),(3,'Ligand list')]),
                 ('Results',[(4,'HTML/CSV reports'),(5,'Statistics'),(6,'Export ZIP'),
-                            (7,'Experiment history'),(8,'Database report')]),
+                            (7,'Experiment history'),(8,'Database report'),(14,'Local ADMET / HTML report'),
+                            (15,'Pareto selection from CSV'), (16,'SMAA / Pareto + SMAA / HTML'),
+                            (17,'CSV report → ADMET / Pareto / SMAA')]),
                 ('Settings',[(9,'Readiness check'),(10,'CPU budget'),(11,'Cache statistics'),
                              (12,'Clear cache'),(13,'Project status')])]
         for title,items in groups:
@@ -89,9 +91,62 @@ class DockScreenApp:
                 console.print(f'  {number:>2}  {label}')
         console.print('   0  Exit')
 
+    def admet_report(self):
+        """Enrich a saved screening run without repeating docking."""
+        from src.admet.workflow import prepare_run, available_runs, enrich_run
+        from src.reporting.combined import generate_combined_report
+        runs = available_runs(self.project_root)
+        if not runs:
+            print_info('No completed runs with saved molecule identities. Finish docking first.')
+            return
+        for i, path in enumerate(runs, 1):
+            console.print(f'{i}: {path.name}', markup=False)
+        choice = int(console.input('Run number (default 1): ').strip() or '1')
+        if not 1 <= choice <= len(runs): raise ValueError('Invalid run number')
+        run = prepare_run(self.project_root, runs[choice - 1])
+        if run != runs[choice - 1]:
+            console.print(f'Saved docking imported without recalculation: {run.name}', markup=False)
+            console.print('Legacy menu SMILES are recovered from saved results; original CSV bytes were not retained.', markup=False)
+        mode = console.input('1 Predict all, 2 Predict best N for one target, 3 Report only (default 3): ').strip() or '3'
+        if mode not in ('1', '2', '3'): raise ValueError('Invalid mode')
+        if mode != '3':
+            top, target = None, None
+            if mode == '2':
+                import json
+                summary = json.loads((run / 'summary.json').read_text(encoding='utf-8'))
+                console.print('Available targets: ' + ', '.join(summary.get('receptors', [])), markup=False)
+                target = console.input('Exact receptor/profile ID: ').strip()
+                top = int(console.input('Number of best rows: ').strip())
+            supplied = console.input('ADMET Python path (Enter = .venv-admet): ').strip().strip('"')
+            python = Path(supplied) if supplied else None
+            if python is not None and not python.is_absolute(): python = self.project_root / python
+            result = enrich_run(self.project_root, run, python_executable=python,
+                                top_n=top, target=target, batch_size=16, timeout=600)
+            console.print(f"ADMET: successful rows {result.get('successful_rows',0)}; failed {result.get('failed',0)}; cached structures {result.get('cache_hits',0)}.",markup=False)
+            if result.get('error'): console.print(f"ADMET error: {result['error']}",markup=False)
+        path = generate_combined_report(self.project_root, run)
+        console.print(f'Open in your browser: {path}', markup=False)
+        if (run / 'admet.json').is_file():
+            from src.reporting.admet import generate_run_reports
+            for report in generate_run_reports(self.project_root, run):
+                console.print(f'Docking + ADMET report: {report}', markup=False)
+        console.print('Use menu item 15 to configure objectives and thresholds in CSV.', markup=False)
+
     def check_readiness(self):
         from src.core.preflight import check_project, display
         display(check_project(self.project_root), console)
+
+    def pareto_csv(self):
+        from src.reporting.pareto_csv import pareto_csv_menu
+        pareto_csv_menu(self.project_root, console)
+
+    def smaa_preferences(self):
+        from src.analysis.smaa_workflow import smaa_menu
+        smaa_menu(self.project_root, console)
+
+    def csv_analysis(self):
+        from src.analysis.csv_workflow import csv_analysis_menu
+        csv_analysis_menu(self.project_root, console)
 
     def configure_cpu(self):
         pool=project_budget(self.project_root)
@@ -160,11 +215,11 @@ class DockScreenApp:
         from src.ui.docking_menu import docking_menu
         docking_menu(self, console)
 
-    def generate_reports(self, exhaustiveness: int = None):
+    def generate_reports(self, exhaustiveness: int = None, *, run_dir=None, admet=None):
         """Generate HTML and CSV reports."""
         print_header("📄 Report generation", "HTML and CSV results")
         
-        results_json = self.project_root / "output" / "cache" / "docking_results.json"
+        results_json = Path(run_dir) / 'results.json' if run_dir is not None else self.project_root / "output" / "cache" / "docking_results.json"
         
         if not results_json.exists():
             print_error("Docking results not found!")
@@ -174,6 +229,18 @@ class DockScreenApp:
         import json
         with open(results_json, 'r', encoding='utf-8') as f:
             docking_results = json.load(f)
+        if admet is None:
+            from src.reporting.admet import report_context
+            if run_dir is not None:
+                admet = report_context(self.project_root, run_dir)
+            else:
+                from src.admet.workflow import available_runs
+                for candidate in available_runs(self.project_root):
+                    if ((candidate / 'admet.json').is_file() and
+                        json.loads((candidate / 'results.json').read_text(encoding='utf-8')) == docking_results):
+                        admet = report_context(self.project_root, candidate)
+                        run_dir = candidate
+                        break
         
         if not docking_results:
             print_error("Docking results are empty")
@@ -189,7 +256,8 @@ class DockScreenApp:
             title = "Docking results"
         
         html_path, csv_path = self.reporter.generate_reports(
-            enriched_results, title=title, exhaustiveness=exhaustiveness
+            enriched_results, title=title, exhaustiveness=exhaustiveness, admet=admet,
+            output_dir=Path(run_dir) / 'reports' if run_dir is not None else None
         )
         
         print_success("Reports created:")
@@ -429,7 +497,8 @@ class DockScreenApp:
                  '4':self.generate_reports,'5':self.view_statistics,'6':self.export_to_zip,
                  '7':self.view_db_experiments,'8':self.generate_db_report,
                  '9':self.check_readiness,'10':self.configure_cpu,'11':self.cache_statistics,
-                 '12':self.clear_cache,'13':self.project_status}
+                 '12':self.clear_cache,'13':self.project_status,'14':self.admet_report,'15':self.pareto_csv,
+                 '16':self.smaa_preferences,'17':self.csv_analysis}
         while True:
             self.show_menu()
             choice=console.input('Your choice: ').strip()

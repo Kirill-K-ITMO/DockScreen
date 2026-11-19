@@ -168,7 +168,7 @@ def test_real_vina_timeout_child_exits_and_cpu_releases(tmp_path):
     receptor = proteins / "JAK1_3EYG.pdbqt"
     config = configs / "JAK1_3EYG.txt"
     shutil.copyfile(ROOT / "data/proteins/JAK1_3EYG.pdbqt", receptor)
-    shutil.copyfile(ROOT / "data/configs/JAK1_3EYG.txt", config)
+    shutil.copyfile(ROOT / "settings/receptors/JAK1_3EYG.txt", config)
     ligand = Path(LigandConverter(root).prepare_cached("CCO")["path"])
     docker = AutoDockVina(root, vina_executable=vina, timeout=0.001, cpu_budget=1)
     original_popen = subprocess.Popen
@@ -202,7 +202,7 @@ def test_real_cli_custom_csv_profile_and_timeout_exit_code(tmp_path):
     (root / "data/proteins").mkdir(parents=True)
     (root / "data/configs/R").mkdir(parents=True)
     shutil.copyfile(ROOT / "data/proteins/JAK1_3EYG.pdbqt", root / "data/proteins/R.pdbqt")
-    shutil.copyfile(ROOT / "data/configs/JAK1_3EYG.txt", root / "data/configs/R/one.txt")
+    shutil.copyfile(ROOT / "settings/receptors/JAK1_3EYG.txt", root / "data/configs/R/one.txt")
     source = "Compound\tSMI\nобразец\tCCO\n".encode("utf-8-sig")
     (root / "data/custom.tsv").write_bytes(source)
     command = [sys.executable, str(ROOT / "main.py"), "--run", "--project", str(root),

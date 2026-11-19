@@ -10,14 +10,24 @@ from src.core.cpu_budget import configure_project_cpu
 from src.docking.vina import AutoDockVina
 from src.screening import run_screen
 
+def _copy_verification_inputs(data, root):
+    """Copy example inputs to an isolated project; support current and legacy layouts."""
+    data, root = Path(data), Path(root)
+    config = data.parent / 'settings/receptors'
+    if not config.is_dir():
+        config = data / 'configs'
+    if not config.is_dir():
+        raise ValueError('Verification requires settings/receptors or legacy data/configs')
+    shutil.copytree(data / 'proteins', root / 'data/proteins')
+    shutil.copytree(config, root / 'settings/receptors')
+
 def verify(vina,data,output):
     output=Path(output).resolve()
     report={'status':'failed','checks':{},'error':None}
     try:
         with tempfile.TemporaryDirectory(prefix='dockscreen-verification-') as folder:
             root=Path(folder)
-            for sub in ['proteins','configs']:
-                shutil.copytree(Path(data)/sub,root/'data'/sub)
+            _copy_verification_inputs(data, root)
             proteins=sorted(p.stem for p in (root/'data/proteins').glob('*.pdbqt'))
             if len(proteins)<2: raise ValueError('Verification requires at least two real receptor files')
             proteins=proteins[:2]

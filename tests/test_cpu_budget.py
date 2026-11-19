@@ -29,7 +29,7 @@ def test_persistent_settings_and_shared_instances(tmp_path,monkeypatch):
     monkeypatch.setattr('src.core.cpu_budget.available_cpus',lambda:8)
     a=configure_project_cpu(tmp_path,4,2)
     assert project_budget(tmp_path) is a
-    assert json.loads((tmp_path/'cpu_settings.json').read_text())=={'cpu_budget':4,'cpu_per_job':2}
+    assert json.loads((tmp_path/'settings/cpu_settings.json').read_text())=={'cpu_budget':4,'cpu_per_job':2}
     configure_project_cpu(tmp_path,2,1)
     assert a.total==2 and a.per_job==1
     with pytest.raises(ValueError):project_budget(tmp_path,total=4)
