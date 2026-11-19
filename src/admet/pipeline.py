@@ -25,6 +25,24 @@ def _finite(value):
     return isinstance(value, (float, int)) and not isinstance(value, bool) and math.isfinite(value)
 
 
+def _terminate_worker(process):
+    """Stop our worker and its Windows launcher descendants before deleting logs."""
+    if process.poll() is None:
+        if os.name == 'nt':
+            # A Windows venv Python launcher can own another Python process which
+            # inherits worker.log. Killing only the launcher leaves that handle open.
+            taskkill = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/taskkill.exe'
+            try:
+                subprocess.run([str(taskkill), '/PID', str(process.pid), '/T', '/F'],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), timeout=10)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        if process.poll() is None:
+            process.kill()
+    process.wait()
+
+
 def _invoke(python, request, timeout, work_dir):
     """File responses plus sanitized progress; worker stdout stays in its log."""
     worker = Path(__file__).with_name('worker.py')
@@ -73,8 +91,7 @@ def _invoke(python, request, timeout, work_dir):
                         time.sleep(.1)
                     notify()
                 except BaseException:
-                    if process.poll() is None: process.kill()
-                    process.wait()
+                    _terminate_worker(process)
                     raise
                 process.wait()
         except FileNotFoundError as error:

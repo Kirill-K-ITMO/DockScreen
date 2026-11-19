@@ -316,8 +316,8 @@
       "size": 117
     },
     "src/admet/pipeline.py": {
-      "sha256": "0891a037f139da696cbd70344a3e5053c99dc8c63fd57774825a61a70695fa53",
-      "size": 17217
+      "sha256": "8bb9a4fba95b17cc37275b176423bc0f0a70e489ade00b6fb23de07e1e7173c4",
+      "size": 18038
     },
     "src/admet/worker.py": {
       "sha256": "b48ab776d9bd995261acd151e802510535f54777e1b7c07bb1cbdbe2c2fe4c03",
@@ -524,12 +524,12 @@
       "size": 6297
     },
     "tests/test_admet_progress_ui.py": {
-      "sha256": "58f18c767347ed5fd24fd7a276f18fbcaa4ddda793d39e494fa30ab3ea313635",
-      "size": 7420
+      "sha256": "eafdabb6b8cb01e2cd6e35bf3c5fbaf8bd39ef217b4d3636319a51838c6e2963",
+      "size": 7673
     },
     "tests/test_affinity_notes.py": {
-      "sha256": "022ddede413aa7958ad73486b6db1c5d5da160db4f6b178dbfbc4368d4511410",
-      "size": 1326
+      "sha256": "7be45128ca307ebb44aeed934b2cb4198a3fef5ef8e411b05f481350274a83cc",
+      "size": 1503
     },
     "tests/test_analysis_documents.py": {
       "sha256": "8431b0f3a6dd821ab459be2e3894b1336d7d7dcbe027a81bb8cc331c9951d48b",

@@ -1,4 +1,4 @@
-"""Independent checks for Russian menus and honest isolated-worker progress."""
+"""Independent checks for English menus and honest isolated-worker progress."""
 import io
 import json
 from pathlib import Path
@@ -95,12 +95,15 @@ def test_timeout_kills_and_reaps_worker(stub_worker,tmp_path):
 
 
 def test_interrupt_from_callback_kills_and_reaps_worker(stub_worker,tmp_path):
-    pipeline,_,processes=stub_worker
+    pipeline,worker,processes=stub_worker
+    # Keep the real worker alive: a Windows launcher-only kill must fail cleanup.
+    worker.write_text(worker.read_text(encoding='utf-8').replace('time.sleep(.15)', 'time.sleep(30)'),encoding='utf-8')
     def cancel(event):raise KeyboardInterrupt
     with pytest.raises(KeyboardInterrupt):
         pipeline._invoke(sys.executable,{'action':'predict','smiles':['CCO','CCN'],
                                          '_progress_callback':cancel},5,tmp_path)
     assert processes and all(p.poll() is not None for p in processes)
+    assert not list(tmp_path.glob('admet-*'))
 
 
 def test_worker_batches_report_only_finished_structures_and_preserve_values(tmp_path,monkeypatch):

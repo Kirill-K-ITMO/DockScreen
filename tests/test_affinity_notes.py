@@ -16,16 +16,19 @@ def test_standard_temperature_and_units():
     assert calculator.calculate_pki(ki) == pytest.approx(6)
 
 
-def test_html_csv_notes_keep_values_and_schema(project):
+@pytest.mark.parametrize('name', ['sample', 'Молекула α'])
+def test_html_csv_notes_keep_values_and_schema(project, name):
     reporter = ReportGenerator(project[0])
-    data = AffinityCalculator().process_docking_results({'sample': {'A': {'affinity': -7.0}}})
-    html, table = reporter.generate_reports(data, smiles_dict={'sample': 'CCO'})
-    text = Path(html).read_text()
+    data = AffinityCalculator().process_docking_results({name: {'A': {'affinity': -7.0}}})
+    html, table = reporter.generate_reports(data, smiles_dict={name: 'CCO'})
+    text = Path(html).read_text(encoding='utf-8')
     assert '298.15 K' in text and 'not experimental affinity' in text
     assert 'Imported results or custom API temperatures' in text
-    note = Path(str(table) + '.notes.txt').read_text()
+    note = Path(str(table) + '.notes.txt').read_text(encoding='utf-8')
     assert '298.15 K' in note and 'kcal/mol' in note
-    with Path(table).open() as stream:
+    with Path(table).open(encoding='utf-8-sig', newline='') as stream:
         row = next(csv.DictReader(stream))
-    assert float(row['A_ki']) == data['sample']['A']['ki']
-    assert float(row['A_pki']) == data['sample']['A']['pki']
+    assert row['name'] == name
+    assert name in text
+    assert float(row['A_ki']) == data[name]['A']['ki']
+    assert float(row['A_pki']) == data[name]['A']['pki']
