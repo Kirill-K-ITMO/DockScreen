@@ -14,7 +14,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -r requirements-test.txt
-      - run: python -m pytest -q
-      - run: python scripts/source_release.py --check
-      - run: python scripts/source_release.py --output dist/DockScreen-source.zip
+      - run: python scripts/install.py --test
+      - name: Test and verify the reviewed source package
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            DOCKSCREEN_PYTHON=".venv/Scripts/python.exe"
+          else
+            DOCKSCREEN_PYTHON=".venv/bin/python"
+          fi
+          "$DOCKSCREEN_PYTHON" -m pytest -q
+          "$DOCKSCREEN_PYTHON" scripts/source_release.py --check
+          "$DOCKSCREEN_PYTHON" scripts/source_release.py --output dist/DockScreen-source.zip

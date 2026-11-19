@@ -59,7 +59,8 @@ class AutoDockVina:
         # Directory paths
         self.data_dir = self.project_root / "data"
         self.proteins_dir = self.data_dir / "proteins"
-        self.configs_dir = self.data_dir / "configs"
+        from src.core.settings_paths import receptor_settings_dir
+        self.configs_dir = receptor_settings_dir(self.project_root)
         self.ligands_dir = self.project_root / "output" / "ligands_pdbqt"
         self.results_dir = self.project_root / "output" / "docking_results"
         self.cache_dir = self.project_root / "output" / "cache"

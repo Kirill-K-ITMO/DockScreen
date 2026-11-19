@@ -1,3 +1,5 @@
+> Инструкция пользователя объединена в [README_RU.md](../README_RU.md). Этот документ содержит дополнительные технические сведения.
+
 # Docking-score-derived Ki and pKi
 
 The standard DockScreen workflow uses **T = 298.15 K (25 °C)**. This temperature is used for the score conversion only; it is not a Vina simulation-temperature setting.

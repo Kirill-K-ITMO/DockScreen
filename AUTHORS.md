@@ -5,9 +5,6 @@
 **Kirill V. Karkhanin** is the software author and developer of DockScreen.
 The original project code is distributed under the [MIT License](LICENSE).
 
-DockScreen is developed independently by Kirill V. Karkhanin, its sole author
-and developer, without scientific supervision.
-
 ## Third-party contributions
 
 The project uses independently developed scientific software and public

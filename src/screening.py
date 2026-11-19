@@ -116,4 +116,14 @@ def run_screen(root,rows,proteins,docker,*,exhaustiveness=8,workers=4,preparatio
             except OSError:
                 pass
     atomic_json(run_dir/'summary.json',summary)
+    try:
+        from datetime import datetime, timezone
+        from src.reporting.document_names import publish_documents
+        files=['scores.csv','results.json','preparation.json','summary.json']
+        if (run_dir/'report.html').is_file(): files.append('report.html')
+        publish_documents(run_dir, kind='DOCKING', target=proteins[0] if len(proteins)==1 else 'multiple-targets',
+            identity=run_dir.name, created_utc=datetime.now(timezone.utc).isoformat(), filenames=files)
+    except Exception as error:
+        import logging
+        logging.getLogger(__name__).warning('Readable report copies unavailable; canonical results retained: %s', error)
     return summary

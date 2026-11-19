@@ -31,7 +31,7 @@ def check_dependencies():
         try:
             importlib.import_module(name)
         except Exception as error:
-            report.errors.append(f'{name}: {error}. Install requirements.txt in the active environment.')
+            report.errors.append(f'{name}: {error}. Run python scripts/install.py, then use .venv.')
     return report
 
 def _probe_directory(path):
@@ -67,7 +67,7 @@ def check_run(root, *, proteins=None, rows=None, ligands=None, exhaustiveness=8,
             from src.docking.vina import AutoDockVina
             docker = AutoDockVina(root)
         except Exception as error:
-            report.errors.append(f'Vina/CPU: {error}. Check app_settings.json and cpu_settings.json.')
+            report.errors.append(f'Vina/CPU: {error}. Check settings/app_settings.json and settings/cpu_settings.json.')
     if docker is not None:
         if proteins is None:
             try:

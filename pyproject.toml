@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dockscreen"
+version = "0.3.0"
+description = "Local molecular docking and optional ADMET/Pareto/SMAA analysis"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+license = "MIT"
+authors = [{name = "Kirill V. Karkhanin"}]
+dependencies = []
+
+# One dependency source, two separate environments. Never combine docking+admet:
+# the verified RDKit versions differ. scripts/install.py selects groups safely.
+[project.optional-dependencies]
+docking = [
+    "rdkit==2026.3.6",
+    "meeko==0.8.0",
+    "gemmi==0.7.5",
+    "numpy==2.3.5",
+    "scipy==1.17.0",
+    "Pillow==12.3.0",
+    "rich==15.0.0",
+    "filelock==4.0.12",
+    "Jinja2==3.1.6",
+]
+admet = [
+    "admet-ai==2.0.1",
+    "torch==2.15.0",
+    "chemprop==2.3.1",
+    "rdkit==2026.9.2",
+]
+test = ["pytest==9.1.1"]
+
+[tool.setuptools.packages.find]
+include = ["src", "src.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = ["fast: Local unit and preparation tests; no installed Vina required."]

@@ -1,68 +1,118 @@
-# DockScreen 0.2.0
+# DockScreen 0.3.0
 
 ![DockScreen](assets/dockscreen-logo.svg)
 
-Prepare ligands from SMILES and screen them against one or more prepared receptors using an external AutoDock Vina executable. DockScreen provides a terminal menu and a non-interactive command for batch jobs.
+[Русская инструкция](README_RU.md)
 
-The program includes RDKit/Meeko ligand preparation, bounded CPU allocation, per-calculation caching, docking poses, HTML reports, and CSV/JSON exports. Each receptor is evaluated independently. Docking scores are computational estimates, not measurements of activity or selectivity.
+DockScreen helps you prepare small molecules, dock them to prepared proteins, and explore the resulting candidates. Start with the numbered terminal menu; commands for repeatable runs are included below.
 
-Version 0.2.0 adds per-task timeout outcomes, configurable CSV columns/names,
-multiple receptor configuration profiles, per-profile hit tables and compact
-result archives.
-DockScreen is a preliminary release.
+The four steps answer different questions:
 
-## Installation
+| Step | What it does | What you get |
+|---|---|---|
+| Docking | Places a molecule in a chosen region of a protein and scores the poses | Poses and docking scores |
+| ADMET, optional | Predicts selected absorption, distribution, metabolism, excretion and toxicity properties from SMILES | Model scores and predicted properties |
+| Pareto, optional | Applies your limits, then removes a candidate if another is at least as good in every objective and better in at least one | A front and reasons for every exclusion |
+| SMAA, optional | Repeats ranking with many possible preference weights | How often each candidate occupies each rank or enters your top-N |
 
-Use Python 3.12 x64. AutoDock Vina is installed separately; no Vina binary is
-included in this source repository. A separate Windows release ZIP can include
-Vina.
+These are computational decision aids. They do not establish measured activity, selectivity, clinical safety or a successful drug.
 
-Windows 10, PowerShell in the unpacked project directory:
+## 1. Install and open
 
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe main.py --version
-```
+1. Unpack the project into a writable folder. Keep the folders together.
+2. Install **Python 3.12, 64-bit**, then run **INSTALL.cmd** and wait for it to finish. Internet access is needed to download packages. Installation creates `.venv` for docking and analysis. When it asks whether to install optional ADMET, answer `y` to create `.venv-admet` too. Answering no keeps docking available without ADMET.
+3. Run **CHECK.cmd** to check the setup, then **START.cmd** to open the menu.
+4. Enter a menu number and press Enter. Enter `0` to exit.
 
-Linux:
+There is one dependency list: **pyproject.toml**, with the `docking`, `admet` and `test` groups. The installer reads that list. Two environments are intentional: the docking and ADMET engines need different versions of some libraries. Do not combine the groups into one environment.
 
-```bash
-python3.12 -m venv .venv
-./.venv/bin/python -m pip install -r requirements.txt
-./.venv/bin/python main.py --version
-```
-
-Put a compatible Vina executable in `tools/`, or use one already on PATH. On Windows you can copy your existing `vina.exe`. On Linux use a Linux executable, not `vina.exe`; give it execute permission if required. Check it with `tools/vina --version` or `.\tools\vina.exe --version`.
-
-For the terminal menu, configure `app_settings.json`:
+AutoDock Vina is an external program. A Windows package may already contain `tools/vina.exe`. If yours does not, put a compatible Vina executable there and set its path in `settings/app_settings.json`:
 
 ```json
-{
-  "vina_executable": "tools/vina.exe"
-}
+{"vina_executable": "tools/vina.exe"}
 ```
 
-On Linux use `"tools/vina"`, an absolute path, or `"vina"` if available on PATH.
+Paths inside that file are relative to the **project folder**, not the `settings` folder. The GitHub source package does not include Vina. On Linux use a native Linux Vina executable, such as `tools/vina`; a Windows `.exe` is not a native Linux executable. Preserve the applicable Vina licenses and notices when redistributing it.
 
-## Input layout
+<details>
+<summary>Linux installation</summary>
+
+Use Python 3.12 and a native Linux Vina executable. From the project folder:
+
+```bash
+python3.12 scripts/install.py --interactive
+./.venv/bin/python main.py --check --vina /path/to/vina
+./.venv/bin/python main.py
+```
+
+Replace `/path/to/vina` with its actual path; save it in `settings/app_settings.json`
+for subsequent menu runs. The `.cmd` launchers are for Windows.
+
+</details>
+
+## 2. Find your files
 
 ```text
-data/
-  ligands.csv
-  proteins/
-    receptor_A.pdbqt
-    receptor_B.pdbqt
-  configs/
-    receptor_A.txt
-    receptor_B.txt
+DockScreen-0.3.0/
+  START.cmd                  open the menu
+  INSTALL.cmd                install the environments
+  CHECK.cmd                  check the setup
+  pyproject.toml             one dependency list
+  settings/
+    app_settings.json        Vina executable path
+    cpu_settings.json        CPU allocation
+    ligand_import.json       optional custom molecule-CSV mapping
+    PARETO_CRITERIA.csv      your editable Pareto criteria
+    PARETO_PARAMETERS.csv    available-parameter catalogue, created when needed
+    receptors/
+      JAK1_3EYG.txt          receptor box/settings
+      JAK2_6BBV.txt
+  data/
+    ligands.csv              molecule names and SMILES
+    proteins/                prepared receptor .pdbqt files
+    ligand_sources.csv       provenance of bundled molecules
+    receptor_sources.json    provenance of bundled receptors
+  tools/vina.exe             Windows docking executable, if supplied
+  output/runs/               separate folders for saved runs
 ```
 
-The receptor and its config must share a filename stem. Supply already prepared, scientifically appropriate receptor files. DockScreen does not prepare proteins.
+Use **settings/** for editable configuration and **output/** for results. Settings created for an individual run are under `output/runs/RUN/settings/`; exact settings used by an analysis are also saved with that analysis. Existing result snapshots are evidence of an earlier calculation: do not edit them to change a new analysis.
 
-The default ligand CSV schema is UTF-8 with `name,smiles` columns. Custom
-schemas use `--smiles-column`, `--name-column`, `--name-mode`, `--delimiter`
-or project-wide `data/ligand_import.json` (example under examples/).
+The bundled example contains 40 molecules and independently evaluated JAK1_3EYG / JAK2_6BBV receptors. It is a technical example, not a validated activity or selectivity benchmark. Keep the source tables when redistributing it. Receptor preparation and stereochemistry limitations are recorded in [example provenance](docs/test_data.md).
+
+## 3. Run your first docking
+
+1. Open **START.cmd**.
+2. Choose **9 — Readiness check**. Resolve missing files before calculating.
+3. Choose **1 — Docking**.
+4. Select a receptor by its number, or `all` for all listed receptors.
+5. Select molecules by their numbers or `all`. Read the readiness summary and confirm the run.
+6. When asked **Generate reports?**, answer yes to get HTML/CSV reports.
+7. The next question offers optional **ADMET**. Answer yes to add local predictions, or no to finish with docking alone.
+8. Note the printed result path. Open the HTML in a browser or CSV in a spreadsheet.
+
+Different receptors are evaluated separately. A failure for one receptor does not erase successful results for another. Each run has a separate folder inside `output/runs/`.
+
+**Reading a score:** for the same receptor and compatible protocol, `−8` is a lower, more favourable docking score than `−6`. The minus sign matters. A score limit `≤ −7` admits `−8` and rejects `−6`; exactly `−7` passes. A docking score is not a measured binding affinity. Any displayed Ki/pKi is a score-derived estimate, not an independent experiment.
+
+## Work progress
+
+Terminal menus and panel labels are in English.
+During ligand preparation and docking, a rotating abstract ASCII molecule appears
+above the completed-work progress bar. The bar advances only after a task finishes,
+not with each animation frame. The same molecule is used for ADMET.
+The ADMET panel shows the real progress bar, phase,
+cache count, failures and elapsed time. It is decorative, not the current candidate.
+Environment checks and model loading do not display invented percentages. Prediction
+counts advance after completed batches and refer to unique structures. Redirected
+output and limited terminals use plain phase/count messages. Set
+DOCKSCREEN_NO_ANIMATION=1 to disable motion.
+
+![Interface preview — sample numbers](assets/admet-panel-preview.gif)
+
+## 4. Use your own molecules and receptor
+
+Replace or copy `data/ligands.csv` with a **UTF-8 CSV**:
 
 ```csv
 name,smiles
@@ -70,11 +120,9 @@ ethanol,CCO
 ethylamine,CCN
 ```
 
-Comma, semicolon and tab separators and UTF-8 BOM are supported. A file with only `smiles` receives generated names. Quote fields containing the separator using standard CSV quoting. Names are labels, not file paths. The batch command preserves duplicate names as distinct numbered rows and uses chemical identity for caching.
+`name` is your label; `smiles` describes the structure. Duplicate names remain separate numbered rows. Comma, semicolon and tab separators are supported for molecule input. If a field contains the separator, quote it using normal CSV rules. Custom headers can be configured in `settings/ligand_import.json`; an example is in `settings/examples/ligand_import.json`. A CSV containing only molecule SMILES is a docking input, not an already completed docking report.
 
-Structures must be valid connected molecular graphs without unpaired radicals or open attachment atoms. Input validation does not establish chemical stability or synthetic accessibility. Preparation does not enumerate tautomers, protonation states or unspecified stereoisomers. Unsupported UFF parameters, failed embedding or nonconverged optimization can cause preparation failure.
-
-Example receptor config:
+For a new receptor, put a **prepared** `MY_RECEPTOR.pdbqt` in `data/proteins/` and its box file `MY_RECEPTOR.txt` in `settings/receptors/`. Names must match. DockScreen prepares ligands, **not proteins**. Choose box coordinates for your binding site; copying example coordinates onto another protein does not locate that site.
 
 ```ini
 center_x = 10.96
@@ -88,154 +136,165 @@ seed = 42
 cpu = 1
 ```
 
-Centers and box sizes are in angstroms. Use a box appropriate to your receptor, not these example coordinates. Command-line exhaustiveness controls the screening effort. A receptor config's explicit seed takes precedence over the default `--seed`. Effective options are retained in the result JSON.
+Those coordinates illustrate the format only; lengths are in angstroms. For several sites/settings on one receptor, use `settings/receptors/MY_RECEPTOR/PROFILE.txt` and select `MY_RECEPTOR@PROFILE` in the command line.
 
-## Configuration profiles and CSV naming
+## 5. Add ADMET later, without repeating docking
 
-Multiple profiles can share one receptor: put configuration files under
-`data/configs/RECEPTOR/PROFILE.txt` and select `--targets RECEPTOR@PROFILE`.
-For example, `siteA_screen`, `siteA_deep`, `siteB_screen` and `siteB_deep`
-are explicit profile names; the software does not infer their biological role.
-The legacy `data/configs/RECEPTOR.txt` remains supported by `--receptors`.
-When `--exhaustiveness` is omitted, the config value applies (fallback 8);
-an explicit CLI value overrides it.
+Choose **14 — Local ADMET / HTML report**, select a saved run, then choose prediction for all molecules or best N for one target. “Report only” uses already saved matching ADMET. It does not predict missing values.
 
-Custom CSV schemas use exact column names, for example
-`--smiles-column Structure --name-column CompoundCode --delimiter tab`.
-`--name-mode preserve` retains labels, `row` generates numbered names, and
-`column-row` appends a row number to each label. Project-wide settings for the
-menu can be saved as `data/ligand_import.json`; see `examples/ligand_import.json`.
-Previously cached calculations may be recomputed after implementation changes;
-the cache is not deleted during upgrades.
+The ordinary docking HTML has **Docking / ADMET** tabs. In ADMET, open the metric selector to search and choose columns. By default it shows DILI, ClinTox and Bioavailability_Ma. This changes the display only; CSV retains all available predictions.
 
-## CPU allocation
+**Example:** `Bioavailability_Ma = 0.70` is a classification-model score on a 0–1 scale. It is **not 70% oral bioavailability**, nor a verified 70% chance of success. Larger values favour the model's positive class. DILI, ClinTox and hERG are also model signals; smaller values are preferred in the default scenario. They are not calibrated individual clinical-risk probabilities.
 
-```json
-{
-  "cpu_budget": 4,
-  "cpu_per_job": 1
-}
-```
+Predictions are local and may reuse the project's matching cache. An invalid structure or failed prediction keeps an error status; it does not become zero. ADMET-AI is heavy: input batching does not remove the model ensemble from memory.
 
-Save this as `cpu_settings.json`. With four workers, this allows up to four simultaneous one-thread Vina jobs. More threads per job reduce the number of jobs that fit in the same budget. CPU settings are capped by detected CPU availability. The budget applies to one application process; it is not a global limit across separate jobs or nodes.
+## 6. Choose Pareto goals and limits
 
-## Terminal menu
+Choose **15 — Pareto selection from CSV** and select a saved run. The program supplies an editable criteria CSV and a parameter catalogue. Edit the CSV, save **CSV UTF-8**, then run item 15 again and apply it to one target/protocol. You do not repeat docking or ADMET.
 
-```powershell
-.\.venv\Scripts\python.exe main.py
-```
+The default scenario **user-default-v3** is:
 
-Select `1 Docking`, choose receptors by numbers or `all`, then choose ligands by numbers, `all`, or `write smiles` for manual input. The readiness summary appears before confirmation. Other menu items provide preparation, reports, history and cache management.
+| Parameter | Allowed values | Prefer |
+|---|---|---|
+| docking_score | ≤ −7 | smaller |
+| DILI | ≤ 0.5 | smaller |
+| ClinTox | ≤ 0.5 | smaller |
+| Bioavailability_Ma | ≥ 0.5 | larger |
+| hERG | ≤ 0.5 | smaller |
 
-## Non-interactive screening
+These are editable screening choices, not clinical standards. Equality passes. A missing active value excludes the row with a reason. **Zero acceptable candidates is a valid result**: inspect the reasons or deliberately revise your criteria; the program does not silently loosen them. A run of the bundled 40-molecule example can produce an empty set under these five limits.
 
-Check inputs first on Windows:
+The criteria CSV uses these Russian values in both language versions:
 
-```powershell
-.\.venv\Scripts\python.exe main.py --check --vina tools/vina.exe --receptors JAK1_3EYG JAK2_6BBV --cpu-budget 4 --cpu-per-job 1
-```
+| Column | What to enter |
+|---|---|
+| Параметр | Exact ID, for example `DILI` |
+| Использование | `сравнивать` = objective; `ограничение` = filter only; `не учитывать` = ignore |
+| Направление | `минимум`, `максимум`, or `диапазон` for an objective |
+| Не ниже / Не выше | Inclusive lower / upper limits; blank means no limit |
+| Цель от / Цель до | Desired interval for `диапазон`; distance is zero inside it |
+| Пояснение | A note; it does not change calculation |
 
-Run the bundled ligand table:
+For Bioavailability_Ma ≥0.5, enter `0.5` in **Не ниже**. For hERG ≤0.5, enter `0.5` in **Не выше**. For docking ≤−7, enter `-7` in **Не выше**. Do not put a threshold into the desired-interval columns.
 
-```powershell
-.\.venv\Scripts\python.exe main.py --run --vina tools/vina.exe --receptors JAK1_3EYG JAK2_6BBV --ligands data/ligands.csv --cpu-budget 4 --cpu-per-job 1 --workers 4 --exhaustiveness 8
-```
+The generated delimiter is `;`. If Excel puts everything into one column, import “From Text/CSV”, select UTF-8 and semicolon. Keep the parameter IDs unchanged. To add another parameter, copy its row from the catalogue. Repeated IDs are rejected.
 
-Linux equivalent:
+**What is a front?** Ignoring limits just for this illustration, compare docking (smaller) and bioavailability score (larger): A=`(−8,0.4)`, B=`(−7.5,0.6)`, C=`(−7,0.3)`. A and B trade advantages, so both are on the front. A is better than C in both objectives, so C is dominated. Pareto alone assigns no weights and declares no single winner. Several objectives can leave a large front.
 
-```bash
-./.venv/bin/python main.py --run --vina tools/vina --receptors JAK1_3EYG JAK2_6BBV --ligands data/ligands.csv --cpu-budget 4 --cpu-per-job 1 --workers 4 --exhaustiveness 8
-```
+Outputs are under `RUN/pareto/selection-.../`: `front.csv`, `feasible.csv`, `all_candidates.csv`, exact criteria/settings, and a read-only `report.html` with candidate dossiers. User criteria are applied through item 15 or an explicit CLI path; automatic post-docking selection uses the named default scenario, not a silently edited global file.
 
-Paths passed through `--ligands` and a relative executable path passed through `--vina` are resolved against `--project`. `--project` defaults to the directory containing `main.py`. Omitting `--receptors` selects all receptor PDBQT files there. Use `--timeout` to set the timeout in seconds per Vina task, `--preparation-seed` for embedding, and `--no-html` to omit drawings on large runs. `--force-preparation` and `--force-docking` force the corresponding calculations.
+## 7. Explore preferences with SMAA
 
-Exit codes: `0` success, `1` setup or execution error, `2` completed screening with failed pairs, `130` keyboard interruption.
+Choose **16 — Pareto + SMAA**. First create a settings template, inspect it, then select the separate action to execute. The same criteria CSV controls objectives and limits. Only one target/protocol is analysed at a time.
 
-## Results and restarting
+SMAA considers **all** acceptable candidates, including dominated rows. It holds their predicted properties fixed and varies how much each objective is valued. For every candidate it saves the share of scenarios at first place/top-N, mean and median rank, rank quantiles and the complete rank distribution.
 
-Each batch command writes a separate `output/runs/screening-.../` directory:
+**Example:** a top-5 share of `0.65` means 65% of the sampled preference scenarios allocated that candidate a top-5 place. It does **not** mean a 65% probability of experimental success. Three exactly tied candidates competing for first place each receive `1/3`, independent of row order. Excluded rows have blank/null SMAA metrics, not last place. If you request top-10 with only six acceptable candidates, the applied N is six.
 
-- `scores.csv`: every requested pair, including failed preparation/docking rows, with input name, SMILES, status and score in kcal/mol.
-- `results.json`: successful pair results with effective options, cache identifiers, pose paths and input snapshots.
-- `preparation.json`: preparation results and errors for each input row.
-- `summary.json`: run settings, counts, CPU allocation and docking statistics.
-- `input.csv`: exact input bytes captured before calculation for batch CSV runs.
-- `report.html`: optional detailed report for successful results.
-- `task_outcomes.json`: per-row/target status, including timeout failures.
-- `hits/`: separate CSVs (`name,smiles,dG,Ki`) and protocol notes per target.
-  Ki is a score-derived estimate in micromol/L; unrounded estimates <= 1 qualify.
+The separate JSON contains `worst` (desirability 0), `best` (desirability 1), and `alpha` for every objective. For example, a decreasing docking scale with worst=`−6`, best=`−10` gives score `−8` desirability `0.5`. Values outside the anchors saturate at 0/1. For a target interval, the scale describes distance from that interval, with best distance 0.
 
-Use `--export-zip results.zip` to export this completed run. The menu also lets
-you choose a run. Result ZIPs include compact provenance and referenced poses,
-excluding cache, history DB, unrelated runs and temporary files. They do not
-include all source/prepared structures and are not calculation-cache backups.
+Automatic anchors use observed values for the chosen protocol **before limits** and remain fixed in the saved JSON. Constant data use an explicitly recorded expansion; an all-inside target interval uses worst distance 1. Check these exploratory scales before interpreting results. Creating a new template after changing criteria is an explicit action; preserve anchors if comparing only the effect of changed limits.
 
-Result archives require a `.zip` destination outside protected input/source/run
-directories. Existing files are kept unless `--overwrite-zip` is explicitly
-supplied; even then only a valid ZIP can be replaced. The menu asks before
-replacing an existing archive. Export defaults to exclusive creation, so a
-concurrent writer's file is not overwritten. Use a local filesystem supporting
-hard links for this no-clobber export, then copy the archive if needed.
+Default weights are **Dirichlet(alpha=1)**, uniform on the weight simplex; that is a chosen preference assumption, not an absence of assumptions. Scores are added after scaling. Such a model allows compensation between properties inside the accepted set. Correlated endpoints can reinforce overlapping information. Clipping can turn raw dominance into equal desirability. Exact float64 ties share rank positions; quantiles use the inverse discrete rank CDF.
 
-CSV text and dynamic headers are escaped for spreadsheet safety. Formula-like
-strings receive a leading apostrophe; numeric scores remain numeric. Original
-names and SMILES remain in JSON. Keep `*.csv.notes.json` beside each CSV:
-DockScreen restores exactly one presentation prefix only when the file checksum,
-schema and encoding policy match. Edited CSV/notes are rejected on mismatch;
-ordinary unmarked inputs are not automatically dequoted. This also applies to
-hit tables used for another docking run. A metadata checksum binds the notes to
-the CSV bytes; it does not authenticate their author. CSV and notes are separate
-atomic files, so an interrupted export may require regeneration of the pair.
+Results are in `RUN/smaa/analysis-.../`: start with `SUMMARY.txt` and `candidates.csv`; `results.json`, `rank_acceptability.csv`, copied settings, source hashes and method/library versions support reproduction. Seed and scenario count are recorded. Monte Carlo standard errors quantify numerical integration of preferences, **not** ADMET prediction errors. No unsubstantiated property-error model is added.
 
-Poses are under `output/docking_results/by_id/`; immutable input snapshots and prepared files are under `output/inputs/` and `output/prepared/`. Preserve these alongside JSON to retain calculation provenance. The calculation cache is `.calculation_cache/v1/`. Batch commands write file-based reports; the experiment-history database is populated by interactive docking runs.
+## 8. Already have a DockScreen docking CSV?
 
-Rerun the same command in the same project to reuse successful cached calculations. Failures are not reusable successes and are retried. A failure against one receptor does not discard successful pairs against another. A new CSV row order or changed display name does not change the molecular calculation key.
+Choose **17 — CSV report → ADMET / Pareto / SMAA**, select your report, then choose ADMET only, ADMET + Pareto, ADMET + SMAA, or ADMET + Pareto + SMAA. Docking and conformer preparation are not repeated. A new `output/runs/csv-import-.../` retains the original CSV and optional sidecar; source files stay unchanged.
 
-Keyboard interruption is not guaranteed to stop all Vina workers immediately. Forced termination may leave an unfinished task without a cache result or a batch without its final CSV. Already committed successful calculation entries remain reusable; repeat the command to rebuild the batch export. Do not delete the cache when restarting. Keep cache databases on local disk, not a shared network filesystem.
+This accepts DockScreen's native report CSV, not arbitrary spreadsheets: `name`, `smiles`, `<target>_delta_g` and companion Ki/pKi columns must be present. It uses the docking score, ignores imported ADMET numbers as verified predictions, then runs the usual local ADMET pipeline with its cache policy. CSV cannot restore a complete docking protocol or extra score precision: the imported protocol is explicitly marked unknown. Prefer the original saved JSON run when available.
 
-Changing input bytes, relevant settings, engine or preparation implementation can invalidate cache reuse. Lowering exhaustiveness changes the calculation protocol; do not silently mix protocols when interpreting results.
+Keep `report.csv.notes.json` next to `report.csv`. The checksum-bound marker permits reversible decoding of protected text. A mismatch is rejected. Without it, text is preserved literally, including apostrophes that may affect SMILES. A checksum does not authenticate the author of a file.
 
-The detailed HTML report includes optional Ki/pKi conversions at **298.15 K**. These are score-derived estimates, not experimental affinities or a Vina simulation temperature. See [conversion limitations](docs/affinity_estimates.md).
+Automatic SMAA in item 17 announces and saves observed fixed scales, alpha=1, 10000 scenarios, seed=42 and top-N=10. To inspect scales first, use **import only** through CLI, then items 14, 15 and 16 separately.
 
-## Cluster execution
+## HTML and readable document names
 
-Run one instance per allocated node/job, with `--cpu-budget` no larger than the allocated CPUs. The program runs CPU Vina locally; it does not use GPUs, MPI or automatically distribute work between nodes.
+HTML is generated automatically after a successful analysis. Item 15 produces
+Pareto HTML. In item 16 choose 2 for Pareto + SMAA, or 3 for SMAA only. In item 17,
+option 4 runs ADMET + SMAA; option 3 runs ADMET + Pareto + SMAA. CSV constraints
+apply in either mode; SMAA ranks the entire feasible set, not just the front.
+SMAA-only does not produce a separate Pareto report. Empty results still have an
+HTML report explaining exclusions, without invented ranks.
 
-For multiple independent jobs, partition the input CSV and give each job its own project/output/cache directory. Do not run multiple application instances against one project directory. Separate jobs do not share a global CPU budget or latest-results export. Merge completed `scores.csv` files using stable compound identifiers; row numbers are local to each input partition.
+Open the HTML path printed at completion. Each analysis has a `documents/`
+folder containing readable copies of the report, tables, results and settings.
+`INDEX.json` lists their names and checksums. Short canonical names such as
+`results.json` and `criteria.csv` remain stable for the program. Existing analyses
+are not renamed automatically.
 
-An optional [Slurm template](examples/slurm_screening.sh) is supplied. Set its paths and resource requests to your cluster's rules before submission. It has not been submitted to a cluster as part of verification. Other schedulers require a corresponding job script.
+Example: `SMAA__2026-11-18_18-30-00Z__JAK2_6BBV__a1b2c3d4__report.html`.
+Fields are type, UTC date/time (Z), target, short analysis ID and document role.
+A shared ID groups documents from the same analysis. Unsafe target characters
+are replaced. Types include DOCKING, DOCKING-ADMET, ADMET, PARETO, SMAA,
+PARETO-SMAA, HITS and RESULTS (ZIP). ADMET uses molecular-properties because
+these predictions are receptor-independent; combined targets use multiple-targets.
+Editable settings keep stable names under `settings/`.
 
-Native RDKit/Meeko preparation currently has no process isolation or enforced wall-clock timeout. All pair tasks are held in memory, and complete CSV exports appear at the end. Large-scale throughput and memory use have not been validated; use measured, separate input partitions.
+Keep CSV and its paired `.csv.notes.json` together; do not rename only one file.
+ZIP includes the named documents and index. For CLI SMAA-only use `--smaa-run`
+with `--smaa-only`. CSV mode `--csv-analysis-mode smaa` runs local ADMET + SMAA
+without a separate Pareto report.
 
-## Verification
+## 9. Save results and troubleshoot
 
-Local checks do not require a Vina executable:
+Use **6 — Export ZIP** for the selected run. A result archive includes compact provenance, reports, applicable poses and completed analyses; it excludes environments, model weights and cache. It is not a full cache backup. Keep source JSON, receptor/box files and referenced poses when retaining the complete calculation record.
 
-```bash
-python -m pip install -r requirements-test.txt
-python -m pytest -q
-```
+- **“No completed runs”**: finish docking, or import a native report using item 17. A plain ligand CSV is not a completed run.
+- **Empty Pareto/SMAA set**: read exclusion reasons; a strict limit or missing active property may exclude every row.
+- **ADMET fails**: check `.venv-admet`, the reported error and available RAM. Docking results remain saved.
+- **Vina not found**: check `tools/vina.exe` and `settings/app_settings.json`, then run CHECK.cmd.
+- **Too much memory**: reduce the feasible SMAA set with meaningful criteria, or partition docking input into independent runs. Merely displaying fewer rows does not reduce the calculation.
+- **Interrupted**: Ctrl+C stops between calculation batches where supported. Completed cache entries can be reused. An incomplete SMAA is not published as successful.
 
-Run the separate technical check with real Vina:
+Use one application instance per project directory. CPU budget applies to that instance, not to every program on the computer. In `settings/cpu_settings.json`, `{"cpu_budget":4,"cpu_per_job":1}` permits up to four one-thread Vina jobs when the worker count is four. Raising threads per job reduces simultaneous jobs.
+
+## Commands for saved or automated runs
+
+Open PowerShell **in the project folder**. These Windows examples use the environment made by INSTALL.cmd:
 
 ```powershell
-.\.venv\Scripts\python.exe verify_screening.py --vina tools/vina.exe --output screening_verification.json
+# Check and dock the bundled examples.
+.\.venv\Scripts\python.exe main.py --check --vina tools/vina.exe
+.\.venv\Scripts\python.exe main.py --run --vina tools/vina.exe --ligands data/ligands.csv --receptors JAK2_6BBV --cpu-budget 4 --cpu-per-job 1 --workers 4 --exhaustiveness 8
+
+# Copy the printed run path into $run; replace this example placeholder.
+$run = "output/runs/YOUR_SAVED_RUN"
+.\.venv\Scripts\python.exe main.py --admet-run $run
+.\.venv\Scripts\python.exe main.py --pareto-run $run --pareto-criteria settings/PARETO_CRITERIA.csv --pareto-target JAK2_6BBV
+
+# Create a NEW scales file, inspect it, then run SMAA separately.
+.\.venv\Scripts\python.exe main.py --smaa-template $run --pareto-criteria settings/PARETO_CRITERIA.csv --smaa-settings "$run/settings/MY_SMAA.json" --pareto-target JAK2_6BBV
+.\.venv\Scripts\python.exe main.py --smaa-run $run --pareto-criteria settings/PARETO_CRITERIA.csv --smaa-settings "$run/settings/MY_SMAA.json" --pareto-target JAK2_6BBV
+
+# Or analyse a native saved docking report in a new imported run.
+.\.venv\Scripts\python.exe main.py --csv-analyze "C:/my_reports/report.csv" --csv-analysis-mode pareto+smaa --pareto-target JAK2_6BBV
+# Import alone: add ADMET and inspect scales later through items 14/15/16.
+.\.venv\Scripts\python.exe main.py --csv-import "C:/my_reports/report.csv"
 ```
 
-It uses the bundled real receptors and two small preparation fixtures to check execution, poses, cache reuse, CPU allocation and isolation of a failed receptor. This is not a docking accuracy benchmark. No Vina simulator or Vina executable is bundled.
+Use `--pareto-protocol ID` if a target has several protocols. Add `--export-zip results.zip` to a supported calculation/analysis command; an existing ZIP needs `--overwrite-zip`. `--pareto-template RUN --pareto-criteria NEW.csv` creates criteria separately. `python main.py --help` lists options. On Linux, in an appropriately installed environment, replace `.\.venv\Scripts\python.exe` with `./.venv/bin/python` and select the native Vina executable.
 
-To check or build a source release:
+<details>
+<summary>Technical limits, provenance and verification</summary>
 
-```bash
-python scripts/source_release.py --check
-python scripts/source_release.py --output dist/DockScreen_0.2.0-source.zip
-```
+Up to 100000 input rows is an input-size limit, not a guarantee of ranking 100000 feasible alternatives. Dense SMAA rank accumulation needs O(n²) memory for the **feasible** set. Its estimate is checked against 256 MiB before allocating that matrix; total process memory can be higher. Limits also apply to scenarios/objectives/batch sizes; check saved configuration. Large-library throughput has not been validated.
 
-Only reviewed source paths and the bundled example dataset are included.
-The build uses portable default settings, checks example hashes and excludes
-local results, environments and development logs. `--directory NEW_FOLDER`
-writes a clean project ready for repository initialization.
+The installer refuses to modify shared environments connected by links. Install into a clean folder for a separate installation.
 
-## Authorship and licensing
+Native RDKit/Meeko preparation has no enforced process wall-clock timeout. Vina tasks have configurable timeouts. Cache reuse depends on molecular identity, engine, settings and implementation. Keep caches on local storage; partition independent cluster jobs into separate projects, outputs and caches. There is no GPU/MPI or automatic multi-node distribution. [Slurm example](examples/slurm_screening.sh) needs adaptation to your scheduler.
 
-Sole software author and developer: **Kirill V. Karkhanin**. DockScreen is an independent project without scientific supervision. Original application code is under [MIT](LICENSE). Dependencies and structural data retain their own terms; see [third-party notices](THIRD_PARTY_NOTICES.md), [scientific references](docs/references.md) and [example provenance](docs/test_data.md). Dependency pins were retained from the verified environment; they are not a guarantee of installability on every platform or a complete binary-distribution license inventory.
+Preparation does not select pH-dependent microstates, enumerate tautomers/stereoisomers or repair unsuitable proteins. A connected valid structure is not evidence of chemical stability. The included technical receptor example has documented preparation gaps. Score-derived Ki/pKi uses 298.15 K as a conversion parameter, not a Vina simulation temperature; see [conversion details](docs/affinity_estimates.md).
+
+SMAA checks source hashes before/after reading and before publishing. It records fixed scales, exact criteria, PCG64, Dirichlet parameters, seed and method/library versions. Identical numerical reproduction needs the same inputs and computation environment; timestamps/UUIDs differ. Temporary incomplete analyses are not exported as successful.
+
+Testing instructions and dependency groups are defined by the project tooling. The tests and real-Vina verification check technical behaviour, not scientific prediction accuracy. `.\.venv\Scripts\python.exe verify_screening.py --vina tools/vina.exe` runs a small technical docking check. Source packaging uses `scripts/source_release.py`; publication is a separate action.
+
+Method references: [SMAA-2](https://doi.org/10.1287/opre.49.3.444.11220), [implementing SMAA](https://doi.org/10.1016/j.ejor.2005.12.037). Scientific sources, model limitations and example-data attribution remain in [references](docs/references.md) and [data provenance](docs/test_data.md).
+
+</details>
+
+## Author and licenses
+
+Sole software author and developer: **Kirill V. Karkhanin**. Original application code is under [MIT](LICENSE). Preserve [AUTHORS.md](AUTHORS.md), [CITATION.cff](CITATION.cff), [third-party notices](THIRD_PARTY_NOTICES.md), [licensing details](docs/licensing.md), and the applicable files in `licenses/`. Dependencies, AutoDock Vina and structural data retain their own terms.

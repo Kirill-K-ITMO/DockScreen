@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from threading import Condition, Lock
 from src.core.calculation_cache import atomic_json
+from src.core.settings_paths import read_settings_path, settings_path
 
 def positive(value, name):
     if isinstance(value,bool) or not isinstance(value,int) or value < 1:
@@ -66,7 +67,7 @@ def project_budget(root, *, total=None, per_job=None):
     root=Path(root).resolve()
     with _registry_lock:
         if root not in _registry:
-            path=root/'cpu_settings.json'
+            path=read_settings_path(root,'cpu_settings.json')
             values=json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
             unknown=set(values)-{'cpu_budget','cpu_per_job'}
             if unknown: raise ValueError(f'Unknown CPU settings: {sorted(unknown)}')
@@ -92,7 +93,7 @@ def configure_project_cpu(root, total, per_job=1, *, save=True):
         else:
             pool.configure(total,per_job)
         if save:
-            atomic_json(root/'cpu_settings.json',{'cpu_budget':pool.total,'cpu_per_job':pool.per_job})
+            atomic_json(settings_path(root,'cpu_settings.json'),{'cpu_budget':pool.total,'cpu_per_job':pool.per_job})
         _registry[root]=pool
         return pool
 

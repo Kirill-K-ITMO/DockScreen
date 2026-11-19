@@ -1,9 +1,10 @@
 """Shared executable settings for every docking entry point."""
 import json
 from pathlib import Path
+from src.core.settings_paths import read_settings_path
 
 def vina_path(root):
-    path = Path(root) / 'app_settings.json'
+    path = read_settings_path(root, 'app_settings.json')
     data = json.loads(path.read_text(encoding='utf-8-sig')) if path.exists() else {}
     value = data.get('vina_executable', 'vina')
     if not isinstance(value, str) or not value.strip():

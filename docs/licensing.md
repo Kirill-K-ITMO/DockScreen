@@ -1,3 +1,5 @@
+> Инструкция пользователя объединена в [README_RU.md](../README_RU.md). Этот документ содержит дополнительные технические сведения.
+
 # Licensing and distribution
 
 DockScreen's original source code is released under [MIT](../LICENSE). Third-party software and datasets retain their own terms. The current source archive contains no dependency wheels, native libraries, Vina/Open Babel executables, copied Meeko implementation, or ChimeraX software. See [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for versions and retained notices.

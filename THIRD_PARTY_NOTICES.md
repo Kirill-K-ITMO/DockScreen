@@ -1,12 +1,12 @@
 # Third-party components and notices
 
-Dependency inventory inherited from the inspected package versions of 2026-10-30. Scope: DockScreen 0.2.0 source distribution. The project's [MIT License](LICENSE) covers its original code; it does not replace third-party licenses or data terms.
+Dependency inventory inherited from the inspected package versions of 2026-10-30. Retained historical inventory; current release: DockScreen 0.3.0 source distribution. The project's [MIT License](LICENSE) covers its original code; it does not replace third-party licenses or data terms.
 
 This archive contains application source, documentation, example/provenance tables and license-text snapshots. It does not bundle Python, Python package wheels, Vina, Open Babel, ChimeraX, or the RDKit SA-score implementation/model. Dependencies are installed separately. Scientific citations are in [docs/references.md](docs/references.md).
 
 ## Declared Python dependencies
 
-Versions below are the pins in `requirements.txt` and `requirements-test.txt`, checked against installed package metadata. Full copied notices are under `licenses/`; [docs/dependency_inventory.json](docs/dependency_inventory.json) records source paths and hashes. Preserve the complete licenses and notices supplied by the actual dependency distribution when redistributing it.
+The docking/test versions below were checked against installed package metadata. Current dependency groups and version pins are declared in `pyproject.toml`; the optional ADMET group uses a separate environment (see below). Full copied notices are under `licenses/`; [docs/dependency_inventory.json](docs/dependency_inventory.json) records source paths and hashes. Preserve the complete licenses and notices supplied by the actual dependency distribution when redistributing it.
 
 | Component | Version | Role | License / notice |
 |---|---|---|---|
@@ -82,3 +82,16 @@ These records identify the exact declared or observed Python versions. Metadata 
 - [packaging 26.3](https://pypi.org/project/packaging/26.3/)
 - [pluggy 1.7.0](https://pypi.org/project/pluggy/1.7.0/)
 - [iniconfig 2.3.1](https://pypi.org/project/iniconfig/2.3.1/)
+
+## Optional ADMET environment
+
+The optional integration installs ADMET-AI 2.0.1 and its dependencies separately;
+no model weights or environment are included in DockScreen source/Windows ZIPs.
+ADMET-AI package metadata identifies MIT; Chemprop and PyTorch retain their own
+licenses and bundled component notices. Preserve the exact installed wheel/model
+notices if redistributing them. Endpoint data/source URLs remain in prediction
+metadata; no clinical reference database is redistributed. See [ADMET guide](docs/admet.md).
+
+Scientific citations for ADMET-AI, Chemprop, PyTorch, the upstream TDC datasets and
+SMAA are collected in [docs/references.md](docs/references.md#optional-admet-and-preference-analysis).
+These citations complement the license notices; they do not replace them.

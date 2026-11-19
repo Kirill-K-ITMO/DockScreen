@@ -1,10 +1,9 @@
 {
-  "data/README.md": "dbe0648a06e5cb8026fdaf39ec5d8f5cf47ad63f84ab8362ad6f563f6409ee50",
-  "data/configs/JAK1_3EYG.txt": "be116068798031160f4a2eff8a16594377ef2277ca1615a06142c6e871f485e7",
-  "data/configs/JAK2_6BBV.txt": "4548e5d7d37afa88d53703dbb7d0d24c366c42741f27c87b9b2f92b3d6d8cdaf",
+  "settings/receptors/JAK1_3EYG.txt": "be116068798031160f4a2eff8a16594377ef2277ca1615a06142c6e871f485e7",
+  "settings/receptors/JAK2_6BBV.txt": "4548e5d7d37afa88d53703dbb7d0d24c366c42741f27c87b9b2f92b3d6d8cdaf",
   "data/ligand_sources.csv": "a3649aaf9b458b561a47759251e00d28ec4c0cfbf853674969bd7992f1836720",
   "data/ligands.csv": "a9f91e58280d1003e2c1d90e181bdfedad704b7353acc6e862b704d6a6c46225",
   "data/proteins/JAK1_3EYG.pdbqt": "fc729d76a6ee6611469ef35ca0d688be3ac6feecbeb825f0b65102345861eb25",
   "data/proteins/JAK2_6BBV.pdbqt": "39ec9b5a023db662bca24a28f04ed02c302e47eadd09d538d9bd6f8f1ee9471a",
-  "data/receptor_sources.json": "13e1fef7f3fe5bd10e2f0bed3e705b72fb90e2d862f7878b5f091139a671609e"
+  "data/receptor_sources.json": "aa9bebd0b9faf6e4b3a3d9397cb6983ddb9f61f02c59189e2493b56e6ed8fbc4"
 }
