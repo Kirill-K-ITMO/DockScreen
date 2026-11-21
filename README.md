@@ -19,36 +19,83 @@ These are computational decision aids. They do not establish measured activity, 
 
 ## 1. Install and open
 
-1. Unpack the project into a writable folder. Keep the folders together.
-2. Install **Python 3.12, 64-bit**, then run **INSTALL.cmd** and wait for it to finish. Internet access is needed to download packages. Installation creates `.venv` for docking and analysis. When it asks whether to install optional ADMET, answer `y` to create `.venv-admet` too. Answering no keeps docking available without ADMET.
-3. Run **CHECK.cmd** to check the setup, then **START.cmd** to open the menu.
-4. Enter a menu number and press Enter. Enter `0` to exit.
+Get the stable version from [GitHub Releases](https://github.com/Kirill-K-ITMO/DockScreen/releases/tag/v0.3.0).
+For Windows, the archive with Vina is the simplest option. Git is only needed
+for the optional clone method below. Python and Python dependencies are installed
+separately; they are not bundled in either archive.
 
-There is one dependency list: **pyproject.toml**, with the `docking`, `admet` and `test` groups. The installer reads that list. Two environments are intentional: the docking and ADMET engines need different versions of some libraries. Do not combine the groups into one environment.
+### Windows: download a release
 
-AutoDock Vina is an external program. A Windows package may already contain `tools/vina.exe`. If yours does not, put a compatible Vina executable there and set its path in `settings/app_settings.json`:
+1. Install **Python 3.12, 64-bit**, with the **Python launcher** from [python.org](https://www.python.org/downloads/windows/). In PowerShell, check that `py -3.12 --version` prints Python 3.12.
+2. On the release page, expand **Assets** and download **`DockScreen_0.3.0-Windows-with-Vina.zip`**. It includes the tested Vina executable. The `DockScreen_0.3.0-source.zip` and GitHub's **Source code** archives contain source files and require Vina separately.
+3. Extract the archive into a writable folder and open the extracted **`DockScreen`** folder containing `INSTALL.cmd` and `main.py`. Do not launch from inside the ZIP.
+4. Run **INSTALL.cmd** and wait for completion. Internet access is needed to download dependencies. The installer creates `.venv` for docking and analysis. Answer `y` to include optional ADMET in a separate `.venv-admet`, or press Enter to keep docking alone.
+5. Run **CHECK.cmd**. Once the readiness check succeeds, run **START.cmd**. Enter a menu number and press Enter; enter `0` to exit.
+
+The release also provides **`SHA256SUMS.txt`**. You can compare a downloaded archive
+with its listed SHA-256 using PowerShell:
+
+```powershell
+Get-FileHash .\DockScreen_0.3.0-Windows-with-Vina.zip -Algorithm SHA256
+```
+
+<details>
+<summary>Alternative: source installation (Git / Windows / Linux)</summary>
+
+With Git installed, open a terminal in the folder where you want to keep DockScreen:
+
+```bash
+git clone --branch v0.3.0 --depth 1 https://github.com/Kirill-K-ITMO/DockScreen.git DockScreen
+cd DockScreen
+```
+
+This selects the fixed **v0.3.0** release, rather than a changing development branch.
+Without Git, download the release's **Source code (zip)** and extract it; then open
+the folder containing `main.py`. A source checkout does not contain Vina or Python
+environments.
+
+**Set up Vina before the readiness check.** Download the executable for your operating
+system from the [official AutoDock Vina 1.2.7 release](https://github.com/forlilab/AutoDock-Vina/releases/tag/v1.2.7).
+Create a `tools/` folder if needed. For Windows, place the executable at
+`tools/vina.exe` and save this in `settings/app_settings.json`:
 
 ```json
 {"vina_executable": "tools/vina.exe"}
 ```
 
-Paths inside that file are relative to the **project folder**, not the `settings` folder. The GitHub source package does not include Vina. On Linux use a native Linux Vina executable, such as `tools/vina`; a Windows `.exe` is not a native Linux executable. Preserve the applicable Vina licenses and notices when redistributing it.
+For Linux, use a native Linux executable at `tools/vina`, make it executable with
+`chmod +x tools/vina`, and set `{"vina_executable": "tools/vina"}` instead. Paths in
+this setting are relative to the **project folder**, not the `settings` folder.
+An executable already available on PATH can instead be configured as `"vina"`.
+Keep the applicable Vina licenses and notices when redistributing it.
 
-<details>
-<summary>Linux installation</summary>
+On **Windows**, continue from the project folder:
 
-Use Python 3.12 and a native Linux Vina executable. From the project folder:
+```powershell
+.\INSTALL.cmd
+.\CHECK.cmd
+.\START.cmd
+```
+
+On **Linux**, with Python 3.12 installed:
 
 ```bash
 python3.12 scripts/install.py --interactive
-./.venv/bin/python main.py --check --vina /path/to/vina
+./.venv/bin/python main.py --check
 ./.venv/bin/python main.py
 ```
 
-Replace `/path/to/vina` with its actual path; save it in `settings/app_settings.json`
-for subsequent menu runs. The `.cmd` launchers are for Windows.
+Run the last command once the readiness check succeeds. The `.cmd` launchers are
+for Windows. Choose optional ADMET during installation when needed; it is not
+required for docking.
 
 </details>
+
+All dependency pins are in **pyproject.toml**, in the `docking`, `admet` and `test`
+groups. The installer reads this single list. Docking and ADMET intentionally use
+separate environments because their dependency versions differ. Do not combine
+the groups into one environment. A `pip install dockscreen` installation is not
+part of release 0.3.0; use one of the GitHub methods above.
 
 ## 2. Find your files
 
